@@ -98,7 +98,11 @@ services:
 
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
-    environment: *common-env
+    environment:
+      <<: *common-env
+      HTTP_PROXY:  ${HTTP_PROXY}
+      HTTPS_PROXY: ${HTTPS_PROXY}
+      NO_PROXY:    ${NO_PROXY}
     volumes:
       - prowlarr_config:/config
       - media_dir:/data
@@ -122,6 +126,10 @@ services:
         published: 9696
         protocol: tcp
         mode: host
+    # NOTE:
+    # - Outbound indexer traffic uses HTTP(S)_PROXY -> gluetun:8888 (VPN).
+    # - Internal calls to Sonarr/Radarr are excluded via NO_PROXY.
+
 
   radarr:
     image: lscr.io/linuxserver/radarr:latest
