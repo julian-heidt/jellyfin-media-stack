@@ -16,7 +16,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints: [node.role = manager]   # keep NPM on the manager
+        constraints: [node.role == manager]   # keep NPM on the manager
       restart_policy:
         condition: any
         delay: 10s
