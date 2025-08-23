@@ -1,0 +1,233 @@
+version: "3.8"
+
+x-common-env: &common-env
+  PUID: "${PUID}"
+  PGID: "${PGID}"
+  TZ: "${TZ}"
+  UMASK_SET: "${UMASK_SET}"
+
+networks:
+  media-net:
+    external: true
+
+volumes:
+  media_dir:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/media }
+  jellyfin_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyfin/config }
+  jellyfin_cache:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyfin/cache }
+  jellyseerr_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyseerr }
+  radarr_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/radarr }
+  sonarr_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/sonarr }
+  prowlarr_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/prowlarr }
+  qb_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/qbittorrent }
+  gluetun_data:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/vpn }
+
+services:
+
+  # Gluetun VPN container (ProtonVPN)
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    environment:
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${PROTON_WG_PRIVKEY}
+      # Optional Proton settings (uncomment and set in .env if desired):
+      - SERVER_COUNTRIES=${SERVER_COUNTRIES}
+      # - OPENVPN_PROTOCOL=${OPENVPN_PROTOCOL}
+      # - PORT_FORWARDING=${PORT_FORWARDING}
+    cap_add: [ "NET_ADMIN" ]
+    volumes: [ "gluetun_data:/gluetun" ]
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == docker-manager-01.nacho
+      restart_policy:
+        condition: any
+        delay: 10s
+        window: 2m
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+    networks: [ "media-net" ]
+
+  # qBittorrent (configure to use Gluetun's HTTP proxy at gluetun:8888 in the app settings)
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    environment:
+      <<: *common-env
+      WEBUI_PORT: "${QBITTORRENT_WEBUI_PORT}"
+    volumes:
+      - qb_config:/config
+      - media_dir:/data
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == docker-manager-01.nacho
+      restart_policy:
+        condition: any
+        delay: 10s
+        window: 2m
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+    networks: [ "media-net" ]
+    # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    environment: *common-env
+    volumes:
+      - prowlarr_config:/config
+      - media_dir:/data
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == docker-manager-01.nacho
+      restart_policy:
+        condition: any
+        delay: 10s
+        window: 2m
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+    networks: [ "media-net" ]
+    ports:
+      - target: 9696
+        published: 9696
+        protocol: tcp
+        mode: host
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    environment: *common-env
+    volumes:
+      - radarr_config:/config
+      - media_dir:/data
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == docker-manager-01.nacho
+      restart_policy:
+        condition: any
+        delay: 10s
+        window: 2m
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+    networks: [ "media-net" ]
+    ports:
+      - target: 7878
+        published: 7878
+        protocol: tcp
+        mode: host
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    environment: *common-env
+    volumes:
+      - sonarr_config:/config
+      - media_dir:/data
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == docker-manager-01.nacho
+      restart_policy:
+        condition: any
+        delay: 10s
+        window: 2m
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+    networks: [ "media-net" ]
+    ports:
+      - target: 8989
+        published: 8989
+        protocol: tcp
+        mode: host
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ}
+    volumes:
+      - jellyseerr_config:/app/config
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == docker-manager-01.nacho
+      restart_policy:
+        condition: any
+        delay: 10s
+        window: 2m
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+      # ports:
+      # - 5055:5055
+    networks: [ "media-net" ]
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    environment:
+      - TZ=${TZ}
+      - JELLYFIN_PublishedServerUrl=jellyfin.nacho
+    volumes:
+      - jellyfin_config:/config
+      - jellyfin_cache:/cache
+      - media_dir:/media
+      - /dev/dri:/dev/dri        # expose VA-API devices
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == docker-manager-01.nacho   # pin to GPU host
+      restart_policy:
+        condition: any
+        delay: 10s
+        window: 2m
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+      # ports:
+      #   - 8096:8096
+      #   - 7359:7359/udp
+      #   - 8920:8920
+    networks: [ "media-net" ]

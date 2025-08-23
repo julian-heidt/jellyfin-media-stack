@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    environment:
+      - TZ=${TZ}
+    ports:
+      - "80:80"
+      - "81:81"        # Admin UI
+      - "443:443"
+    volumes:
+      - /mnt/docker/nginxproxymanager/data:/data
+      - /mnt/docker/nginxproxymanager/letsencrypt:/etc/letsencrypt
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == docker-manager-01.nacho   # keep NPM on the manager
+      restart_policy:
+        condition: any
+        delay: 10s
+        window: 2m
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+    networks:
+      - media-net
+      - drunk-app-stack_drunk-net   # connect to your webapp overlay network
+
+networks:
+  media-net:
+    external: true
+  drunk-app-stack_drunk-net:
+    external: true
