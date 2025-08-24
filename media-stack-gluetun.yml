@@ -69,6 +69,13 @@ services:
         parallelism: 1
         delay: 10s
     networks: [ "media-net" ]
+    ports:
+      # qbittorrent ports
+      - 5080:5080
+      - 6881:6881
+      - 6881:6881/udp
+      # prowlarr ports
+      - 9696:9696
 
   # qBittorrent (configure to use Gluetun's HTTP proxy at gluetun:8888 in the app settings)
   qbittorrent:
@@ -93,6 +100,8 @@ services:
         parallelism: 1
         delay: 10s     # Web UI
     networks: [ "media-net" ]
+    ports:
+      - 5080:5080
     # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
 
   prowlarr:
@@ -201,9 +210,9 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
-      # ports:
-      # - 5055:5055
     networks: [ "media-net" ]
+    ports:
+      - 5055:5055
 
   jellyfin:
     image: jellyfin/jellyfin:latest
@@ -228,8 +237,8 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
-      # ports:
-      #   - 8096:8096
-      #   - 7359:7359/udp
-      #   - 8920:8920
     networks: [ "media-net" ]
+    ports:
+      - 8096:8096
+      - 7359:7359/udp
+      - 8920:8920
