@@ -47,13 +47,15 @@ services:
     image: qmcgaw/gluetun:latest
     environment:
       - VPN_SERVICE_PROVIDER=protonvpn
-      - VPN_TYPE=wireguard
-      - WIREGUARD_PRIVATE_KEY=${PROTON_WG_PRIVKEY}
+      - OPENVPN_USER=${PROTON_USER}
+      - OPENVPN_PASSWORD=${PROTON_PASS}
+      - HTTPPROXY=on                   # exposes HTTP proxy on 8888
       # Optional Proton settings (uncomment and set in .env if desired):
       - SERVER_COUNTRIES=${SERVER_COUNTRIES}
       # - OPENVPN_PROTOCOL=${OPENVPN_PROTOCOL}
       # - PORT_FORWARDING=${PORT_FORWARDING}
-    cap_add: [ "NET_ADMIN" ]
+    cap_add: 
+      - "NET_ADMIN" 
     volumes: 
       - gluetun_data:/gluetun 
     deploy:
