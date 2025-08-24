@@ -44,16 +44,16 @@ services:
   # Gluetun VPN container (ProtonVPN)
   gluetun:
     hostname: gluetun
+    container_name: gluetun
     image: qmcgaw/gluetun:latest
+    devices:
+      - /dev/net/tun:/dev/net/tun
     environment:
       - VPN_SERVICE_PROVIDER=protonvpn
-      - OPENVPN_USER=${PROTON_USER}
-      - OPENVPN_PASSWORD=${PROTON_PASS}
-      - HTTPPROXY=on                   # exposes HTTP proxy on 8888
-      # Optional Proton settings (uncomment and set in .env if desired):
-      - SERVER_COUNTRIES=${SERVER_COUNTRIES}
-      # - OPENVPN_PROTOCOL=${OPENVPN_PROTOCOL}
-      # - PORT_FORWARDING=${PORT_FORWARDING}
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=w${PROTON_WG_PRIVKEY}
+      - SERVER_COUNTRIES=Netherlands,Romania
+      - FREE_ONLY=true
     cap_add: 
       - "NET_ADMIN" 
     volumes: 
@@ -79,6 +79,8 @@ services:
       - 6881:6881/udp
       # prowlarr ports
       - 9696:9696
+      # gluetun ports
+      - 
 
   # qBittorrent (configure to use Gluetun's HTTP proxy at gluetun:8888 in the app settings)
   qbittorrent:
