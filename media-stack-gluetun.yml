@@ -52,9 +52,11 @@ services:
       - VPN_SERVICE_PROVIDER=protonvpn
       - VPN_TYPE=wireguard
       - WIREGUARD_PRIVATE_KEY=${PROTON_WG_PRIVKEY}
-      - SERVER_COUNTRIES=Netherlands,Romania
       - FREE_ONLY=true
-    cap_add: 
+      - VPN_ENDPOINT_IP=146.70.246.130
+      - VPN_ENDPOINT_PORT=51820    
+      - WIREGUARD_ADDRESSES=10.2.0.2/32  
+    cap_add:
       - NET_ADMIN 
     volumes: 
       - gluetun_data:/gluetun 
