@@ -91,6 +91,8 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
+      ports:
+        - "8080:8080"       # Web UI
     networks: [ "media-net" ]
     # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
 
