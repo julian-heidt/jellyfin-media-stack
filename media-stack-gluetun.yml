@@ -55,7 +55,7 @@ services:
       - SERVER_COUNTRIES=Netherlands,Romania
       - FREE_ONLY=true
     cap_add: 
-      - "NET_ADMIN" 
+      - NET_ADMIN 
     volumes: 
       - gluetun_data:/gluetun 
     deploy:
@@ -74,12 +74,15 @@ services:
     networks: [ "media-net" ]
     ports:
       # qbittorrent ports
-      - 5080:5080
-      - 6881:6881
-      - 6881:6881/udp
+      # - 5080:5080
+      # - 6881:6881
+      # - 6881:6881/udp
       # prowlarr ports
-      - 9696:9696
+      # - 9696:9696
       # gluetun ports
+      - 8888:8888/tcp # HTTP proxy
+      - 8388:8388/tcp # Shadowsocks
+      - 8388:8388/udp # Shadowsocks
       
 
   # qBittorrent (configure to use Gluetun's HTTP proxy at gluetun:8888 in the app settings)
