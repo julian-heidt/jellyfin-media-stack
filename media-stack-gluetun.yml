@@ -100,8 +100,8 @@ services:
         parallelism: 1
         delay: 10s     # Web UI
     networks: [ "media-net" ]
-    ports:
-      - 5080:5080
+    # ports:
+    #   - 5080:5080
     # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
 
   prowlarr:
@@ -128,11 +128,11 @@ services:
         parallelism: 1
         delay: 10s
     networks: [ "media-net" ]
-    ports:
-      - target: 9696
-        published: 9696
-        protocol: tcp
-        mode: host
+    # ports:
+    #   - target: 9696
+    #     published: 9696
+    #     protocol: tcp
+    #     mode: host
     # NOTE:
     # - Outbound indexer traffic uses HTTP(S)_PROXY -> gluetun:8888 (VPN).
     # - Internal calls to Sonarr/Radarr are excluded via NO_PROXY.
