@@ -50,12 +50,14 @@ services:
       - /dev/net/tun:/dev/net/tun
     environment:
       - VPN_SERVICE_PROVIDER=protonvpn
-      - VPN_TYPE=wireguard
-      - WIREGUARD_PRIVATE_KEY=${PROTON_WG_PRIVKEY}
+      # - VPN_TYPE=openvpn
+      # - WIREGUARD_PRIVATE_KEY=${PROTON_WG_PRIVKEY}
+      - OPENVPN_USER=${PROTONVPN_USERNAME}   # required but ignored for WireGuard
+      - OPENVPN_PASSWORD=${PROTONVPN_PASSWORD} # required but ignored for WireGuard
       - FREE_ONLY=true
-      - WIREGUARD_ENDPOINT_IP=146.70.246.130
+      # - WIREGUARD_ENDPOINT_IP=146.70.246.130
       # - WIREGUARD_ENDPOINT_PORT=51820    
-      - WIREGUARD_ADDRESSES=10.2.0.2/32  
+      # - WIREGUARD_ADDRESSES=10.2.0.2/32  
     cap_add:
       - NET_ADMIN 
     volumes: 
