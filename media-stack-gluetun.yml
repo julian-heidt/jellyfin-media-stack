@@ -51,7 +51,7 @@ services:
     environment:
       - VPN_SERVICE_PROVIDER=protonvpn
       - VPN_TYPE=wireguard
-      - WIREGUARD_PRIVATE_KEY=w${PROTON_WG_PRIVKEY}
+      - WIREGUARD_PRIVATE_KEY=${PROTON_WG_PRIVKEY}
       - SERVER_COUNTRIES=Netherlands,Romania
       - FREE_ONLY=true
     cap_add: 
