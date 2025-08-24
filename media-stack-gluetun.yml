@@ -80,7 +80,7 @@ services:
       # prowlarr ports
       - 9696:9696
       # gluetun ports
-      - 
+      
 
   # qBittorrent (configure to use Gluetun's HTTP proxy at gluetun:8888 in the app settings)
   qbittorrent:
