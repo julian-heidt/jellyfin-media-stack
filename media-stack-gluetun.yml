@@ -54,7 +54,8 @@ services:
       # - OPENVPN_PROTOCOL=${OPENVPN_PROTOCOL}
       # - PORT_FORWARDING=${PORT_FORWARDING}
     cap_add: [ "NET_ADMIN" ]
-    volumes: [ "gluetun_data:/gluetun" ]
+    volumes: 
+      - gluetun_data:/gluetun 
     deploy:
       mode: replicated
       replicas: 1
