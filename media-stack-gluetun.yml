@@ -78,11 +78,11 @@ services:
     networks: [ "media-net" ]
     ports:
       # qbittorrent ports
-      # - 5080:5080
-      # - 6881:6881
-      # - 6881:6881/udp
+      - 5080:5080
+      - 6881:6881
+      - 6881:6881/udp
       # prowlarr ports
-      # - 9696:9696
+      - 9696:9696
       # gluetun ports
       - 8888:8888/tcp # HTTP proxy
       - 8388:8388/tcp # Shadowsocks
