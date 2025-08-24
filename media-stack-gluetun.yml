@@ -43,6 +43,7 @@ services:
 
   # Gluetun VPN container (ProtonVPN)
   gluetun:
+    hostname: gluetun
     image: qmcgaw/gluetun:latest
     environment:
       - VPN_SERVICE_PROVIDER=protonvpn
