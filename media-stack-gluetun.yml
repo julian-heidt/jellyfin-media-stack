@@ -58,8 +58,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints:
-          - node.hostname == docker-manager-01.nacho
+        constraints: [node.role == manager]   # keep VPN on the manager
       restart_policy:
         condition: any
         delay: 10s
@@ -83,8 +82,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints:
-          - node.hostname == docker-manager-01.nacho
+        constraints: [node.role == manager]
       restart_policy:
         condition: any
         delay: 10s
@@ -110,8 +108,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints:
-          - node.hostname == docker-manager-01.nacho
+        constraints: [node.role == manager]
       restart_policy:
         condition: any
         delay: 10s
@@ -141,8 +138,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints:
-          - node.hostname == docker-manager-01.nacho
+        constraints: [node.role == manager]
       restart_policy:
         condition: any
         delay: 10s
@@ -168,8 +164,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints:
-          - node.hostname == docker-manager-01.nacho
+        constraints: [node.role == manager]
       restart_policy:
         condition: any
         delay: 10s
@@ -196,8 +191,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints:
-          - node.hostname == docker-manager-01.nacho
+        constraints: [node.role == manager]
       restart_policy:
         condition: any
         delay: 10s
@@ -224,8 +218,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints:
-          - node.hostname == docker-manager-01.nacho   # pin to GPU host
+        constraints: [node.role == manager]   # pin to GPU host
       restart_policy:
         condition: any
         delay: 10s
