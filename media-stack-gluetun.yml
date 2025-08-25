@@ -84,9 +84,9 @@ services:
       # prowlarr ports
       - 9696:9696
       # gluetun ports
-      - 8888:8888/tcp # HTTP proxy
-      - 8388:8388/tcp # Shadowsocks
-      - 8388:8388/udp # Shadowsocks
+      # - 8888:8888/tcp # HTTP proxy
+      # - 8388:8388/tcp # Shadowsocks
+      # - 8388:8388/udp # Shadowsocks
       
 
   # qBittorrent (configure to use Gluetun's HTTP proxy at gluetun:8888 in the app settings)
@@ -111,7 +111,8 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s     # Web UI
-    networks: [ "media-net" ]
+    # networks: [ "media-net" ]
+    network_mode: service:gluetun
     # ports:
     #   - 5080:5080
     # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
@@ -139,7 +140,8 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
-    networks: [ "media-net" ]
+    # networks: [ "media-net" ]
+    network_mode: service:gluetun
     # ports:
     #   - target: 9696
     #     published: 9696
@@ -169,7 +171,9 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
-    networks: [ "media-net" ]
+    networks: 
+      media-net:
+        ipv4_address: ${RADARR_IP}
     ports:
       - target: 7878
         published: 7878
@@ -195,7 +199,9 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
-    networks: [ "media-net" ]
+    networks: 
+      media-net:
+        ipv4_address: ${SONARR_IP}
     ports:
       - target: 8989
         published: 8989
