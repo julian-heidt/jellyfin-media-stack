@@ -22,7 +22,7 @@ volumes:
     driver_opts: { type: none, o: bind, device: /mnt/docker/jellyfin/cache }
   jellyseerr_config:
     driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyseerr }
+    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyseerr/config }
   radarr_config:
     driver: local
     driver_opts: { type: none, o: bind, device: /mnt/docker/radarr }
@@ -61,7 +61,7 @@ services:
         delay: 10s     # Web UI
     networks: [ "media-net" ]
     ports:
-      - 8080:5080
+      - 5080:8080
       - 6881:6881
       - 6881:6881/udp
     # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
