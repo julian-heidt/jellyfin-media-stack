@@ -35,60 +35,8 @@ volumes:
   qb_config:
     driver: local
     driver_opts: { type: none, o: bind, device: /mnt/docker/qbittorrent }
-  gluetun_data:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/vpn }
 
 services:
-
-  # Gluetun VPN container (ProtonVPN)
-  gluetun:
-    hostname: gluetun
-    container_name: gluetun
-    image: qmcgaw/gluetun:latest
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    environment:
-      - VPN_SERVICE_PROVIDER=protonvpn
-      - VPN_TYPE=wireguard
-      - WIREGUARD_PRIVATE_KEY=${PROTON_WG_PRIVKEY}
-      # - OPENVPN_USER=${PROTONVPN_USERNAME}   # required but ignored for WireGuard
-      # - OPENVPN_PASSWORD=${PROTONVPN_PASSWORD} # required but ignored for WireGuard
-      - FREE_ONLY=true
-      - WIREGUARD_ENDPOINT_IP=146.70.246.130
-      # - WIREGUARD_ENDPOINT_PORT=51820    
-      - WIREGUARD_ADDRESSES=10.2.0.2/32  
-    cap_add:
-      - NET_ADMIN 
-    volumes: 
-      - gluetun_data:/gluetun 
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints: [node.role == manager]   # keep VPN on the manager
-      restart_policy:
-        condition: any
-        delay: 10s
-        window: 2m
-      update_config:
-        order: start-first
-        parallelism: 1
-        delay: 10s
-    networks: [ "media-net" ]
-    ports:
-      # qbittorrent ports
-      - 5080:5080
-      - 6881:6881
-      - 6881:6881/udp
-      # prowlarr ports
-      - 9696:9696
-      # gluetun ports
-      # - 8888:8888/tcp # HTTP proxy
-      # - 8388:8388/tcp # Shadowsocks
-      # - 8388:8388/udp # Shadowsocks
-      
-
   # qBittorrent (configure to use Gluetun's HTTP proxy at gluetun:8888 in the app settings)
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -111,10 +59,11 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s     # Web UI
-    # networks: [ "media-net" ]
-    network_mode: service:gluetun
-    # ports:
-    #   - 5080:5080
+    networks: [ "media-net" ]
+    ports:
+      - 5080:5080
+      - 6881:6881
+      - 6881:6881/udp
     # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
 
   prowlarr:
@@ -140,13 +89,9 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
-    # networks: [ "media-net" ]
-    network_mode: service:gluetun
-    # ports:
-    #   - target: 9696
-    #     published: 9696
-    #     protocol: tcp
-    #     mode: host
+    networks: [ "media-net" ]
+    ports:
+      - 9696:9696 
     # NOTE:
     # - Outbound indexer traffic uses HTTP(S)_PROXY -> gluetun:8888 (VPN).
     # - Internal calls to Sonarr/Radarr are excluded via NO_PROXY.
@@ -171,9 +116,7 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
-    networks: 
-      media-net:
-        ipv4_address: ${RADARR_IP}
+    networks: [ "media-net" ]
     ports:
       - target: 7878
         published: 7878
@@ -199,9 +142,7 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
-    networks: 
-      media-net:
-        ipv4_address: ${SONARR_IP}
+    networks: [ "media-net" ]
     ports:
       - target: 8989
         published: 8989
