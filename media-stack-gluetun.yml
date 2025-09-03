@@ -69,8 +69,6 @@ services:
         published: 8080
         protocol: tcp
         mode: ingress
-    sysctls:
-      net.ipv4.conf.all.src_valid_mark: "1"
     deploy:
       mode: replicated
       replicas: 1
