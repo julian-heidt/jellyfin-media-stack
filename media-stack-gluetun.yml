@@ -34,18 +34,43 @@ volumes:
     driver_opts: { type: none, o: bind, device: /mnt/docker/prowlarr }
   qb_config:
     driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/qbittorrent }
+    driver_opts: { type: none, o: bind, device: /mnt/docker/qbittorrent/ }
 
 services:
-  # qBittorrent (configure to use Gluetun's HTTP proxy at gluetun:8888 in the app settings)
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
+  qbittorrentvpn:
+    image: binhex/arch-qbittorrentvpn:latest
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
     environment:
-      <<: *common-env
-      WEBUI_PORT: "${QBITTORRENT_WEBUI_PORT}"
+      # --- core app/user ---
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Etc/UTC"
+      UMASK: "002"
+      WEBUI_PORT: "8080"
+      # --- VPN / WireGuard ---
+      VPN_ENABLED: "yes"
+      VPN_CLIENT: "wireguard"        # wireguard or openvpn
+      VPN_PROV: "mullvad"            
+      USERSPACE_WIREGUARD: "yes"     # Swarm-compatible (no privileged mode)
+      LAN_NETWORK: "192.168.4.0/24"  # your LAN in CIDR; allows local WebUI access
+      NAME_SERVERS: "192.168.4.1,1.1.1.1"  # or your preferred DNS
+      STRICT_PORT_FORWARD: "no"     # keep "yes" if your provider supports PF; otherwise "no"
+
+      # --- optional extras ---
+      ENABLE_PRIVOXY: "no"           # set "yes" to enable and expose port 8118
     volumes:
       - qb_config:/config
-      - media_dir:/data
+      - media_dir:/downloads
+    ports:
+      - target: 8080                 # WebUI only (mgmt traffic outside VPN)
+        published: 8080
+        protocol: tcp
+        mode: ingress
+    sysctls:
+      net.ipv4.conf.all.src_valid_mark: "1"
     deploy:
       mode: replicated
       replicas: 1
@@ -60,10 +85,6 @@ services:
         parallelism: 1
         delay: 10s     # Web UI
     networks: [ "media-net" ]
-    ports:
-      - 5080:5080
-      - 6881:6881
-      - 6881:6881/udp
     # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
 
   prowlarr:
