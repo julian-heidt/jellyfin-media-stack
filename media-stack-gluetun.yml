@@ -63,8 +63,8 @@ services:
       # --- optional extras ---
       ENABLE_PRIVOXY: "no"           # set "yes" to enable and expose port 8118
       ENABLE_SOCKS: "no"
-    sysctl:
-      - "net.ipv4.conf.all.src_valid_mark=1"
+    sysctls:
+      net.ipv4.conf.all.src_valid_mark: "1"
     volumes:
       - qb_config:/config
       - media_dir:/downloads
