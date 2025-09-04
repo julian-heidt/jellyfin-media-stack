@@ -41,6 +41,7 @@ services:
     image: binhex/arch-qbittorrentvpn:latest
     cap_add:
       - NET_ADMIN
+      - SYS_MODULE
     devices:
       - /dev/net/tun:/dev/net/tun
     environment:
@@ -54,7 +55,7 @@ services:
       VPN_ENABLED: "yes"
       VPN_CLIENT: "wireguard"        # wireguard or openvpn
       VPN_PROV: "custom"            
-      USERSPACE_WIREGUARD: "yes"
+      #USERSPACE_WIREGUARD: "yes"
       WG_SUDO: "1"    # Swarm-compatible (no privileged mode)
       LAN_NETWORK: "10.0.4.0/24"  # your LAN in CIDR; allows local WebUI access
       NAME_SERVERS: "192.168.4.1,1.1.1.1"  # or your preferred DNS
@@ -65,6 +66,7 @@ services:
     volumes:
       - qb_config:/config
       - media_dir:/downloads
+      - /lib/modules:/lib/modules
     ports:
       - target: 8080                 # WebUI only (mgmt traffic outside VPN)
         published: 8080
