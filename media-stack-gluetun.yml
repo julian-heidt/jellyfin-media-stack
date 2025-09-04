@@ -60,9 +60,11 @@ services:
       LAN_NETWORK: "10.0.4.0/24"  # your LAN in CIDR; allows local WebUI access
       NAME_SERVERS: "192.168.4.1,1.1.1.1"  # or your preferred DNS
       STRICT_PORT_FORWARD: "no"     # keep "yes" if your provider supports PF; otherwise "no"
-
       # --- optional extras ---
       ENABLE_PRIVOXY: "no"           # set "yes" to enable and expose port 8118
+      ENABLE_SOCKS: "no"
+    sysctl:
+      - "net.ipv4.conf.all.src_valid_mark=1"
     volumes:
       - qb_config:/config
       - media_dir:/downloads
