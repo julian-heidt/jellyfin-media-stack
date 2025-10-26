@@ -12,7 +12,7 @@ services:
       - WIREGUARD_PRIVATE_KEY=${WG_PRIVATE_KEY}   # from Mullvad config generator
       - WIREGUARD_ADDRESS=${WG_ADDRESS}           # e.g. 10.x.y.z/32 from the same config
       # Optionally pick an exit location (one of):
-      # - SERVER_COUNTRIES=United States
+      - SERVER_COUNTRIES=Canada
       # - SERVER_CITIES=Chicago
       # --- Firewall / access ---
       - FIREWALL=on
