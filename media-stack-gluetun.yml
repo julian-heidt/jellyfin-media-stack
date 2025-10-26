@@ -51,8 +51,7 @@ services:
       # --- Mullvad WireGuard ---
       - VPN_SERVICE_PROVIDER=mullvad        # alias VPNSP also works
       - VPN_TYPE=wireguard
-      - WIREGUARD_PRIVATE_KEY=${WG_PRIVATE_KEY}   # from Mullvad config generator
-      - WIREGUARD_ADDRESSES=${WG_ADDRESSES}       # e.g. 10.x.y.z/32 from Mullvad config
+      - WIREGUARD_ADDRESSES=10.70.95.99/32      # e.g. 10.x.y.z/32 from Mullvad config
       # Choose an exit location (one of the below lines, or remove both to auto-pick):
       - SERVER_COUNTRIES=Canada
       # - SERVER_CITIES=Chicago
