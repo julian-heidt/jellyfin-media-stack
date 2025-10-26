@@ -62,7 +62,7 @@ services:
 
       # — DNS for this gluetun version (rename var) —
       # - DOT=off
-      # - DNS_ADDRESS=10.64.0.1                # Mullvad WG DNS
+      - DNS_ADDRESS=10.64.0.1                # Mullvad WG DNS
       # (remove any DNS_PLAINTEXT_ADDRESS / DNS_KEEP_NAMESERVER lines)
 
       # — stop brittle public IP probing —
