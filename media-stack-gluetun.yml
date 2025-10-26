@@ -1,8 +1,8 @@
 version: "3.8"
 
 x-common-env: &common-env
-  PUID: "100"
-  PGID: "100"
+  PUID: "1000"
+  PGID: "1000"
   TZ: "America/Kentucky/Louisville"
   UMASK_SET: "002"
 
@@ -76,8 +76,8 @@ services:
     network_mode: service:gluetun
     depends_on: [ gluetun ]
     environment:
-      PUID: "100"
-      PGID: "100"
+      PUID: "1000"
+      PGID: "1000"
       TZ: "America/Kentucky/Louisville"
       UMASK: "002"     # LSIO uses UMASK; we map your UMASK_SET here
       WEBUI_PORT: "8080"
@@ -114,8 +114,8 @@ services:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     environment: 
-      PUID: "100"
-      PGID: "100"
+      PUID: "1000"
+      PGID: "1000"
     volumes:
       - radarr_config:/config
       - media_dir:/data
@@ -131,8 +131,8 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     environment: 
-      PUID: "100"
-      PGID: "100"
+      PUID: "1000"
+      PGID: "1000"
     volumes:
       - sonarr_config:/config
       - media_dir:/data
