@@ -64,7 +64,7 @@ services:
       - DOT=off                   # turn off DNS-over-TLS inside gluetun
       - DNS_PLAINTEXT_ADDRESS=10.64.0.1     # Mullvad WireGuard DNS inside the tunnel
       - DNS_KEEP_NAMESERVER=on
-      - WIREGUARD_MTU=1380
+      - WIREGUARD_MTU=1360
       # (Optional) avoid GitHub fetches for block lists at startup
       - BLOCK_MALICIOUS=off
       - BLOCK_SURVEILLANCE=off
