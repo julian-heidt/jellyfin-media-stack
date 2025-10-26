@@ -1,10 +1,10 @@
 version: "3.8"
 
 x-common-env: &common-env
-  PUID: 100
-  PGID: 100
-  TZ: Etc/UTC
-  UMASK_SET: 002
+  PUID: "100"
+  PGID: "100"
+  TZ: "Etc/UTC"
+  UMASK_SET: "002"
 
 networks:
   media-net:
@@ -85,7 +85,7 @@ services:
     # Bind to gluetun's network namespace so traffic is forced through the VPN
     network_mode: "service:gluetun"
     depends_on: [ gluetun ]
-    environ1ment:
+    environment:
       PUID: "100"
       PGID: "100"
       TZ: "Etc/UTC"
