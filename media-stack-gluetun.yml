@@ -85,11 +85,11 @@ services:
     # Bind to gluetun's network namespace so traffic is forced through the VPN
     network_mode: "service:gluetun"
     depends_on: [ gluetun ]
-    environment:
-      PUID: "${PUID}"
-      PGID: "${PGID}"
-      TZ: "${TZ}"
-      UMASK: "${UMASK_SET}"     # LSIO uses UMASK; we map your UMASK_SET here
+    environ1ment:
+      PUID: "100"
+      PGID: "100"
+      TZ: "Etc/UTC"
+      UMASK: "002"     # LSIO uses UMASK; we map your UMASK_SET here
       WEBUI_PORT: "8080"
     volumes:
       - qb_config:/config
