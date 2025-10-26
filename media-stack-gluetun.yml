@@ -60,6 +60,9 @@ services:
       - FIREWALL_INPUT_PORTS=8080           # allow LAN to reach WebUI via host:8080
       # NOTE: Mullvad does NOT offer port forwarding; do not open torrent peer ports.
       - TZ=${TZ}
+      - DOT=off                   # turn off DNS-over-TLS inside gluetun
+      - DNS_ADDRESS=10.64.0.1     # Mullvad WireGuard DNS inside the tunnel
+
     volumes:
       - /lib/modules:/lib/modules:ro
       - qb_config:/gluetun
