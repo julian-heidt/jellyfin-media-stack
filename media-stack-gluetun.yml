@@ -74,6 +74,11 @@ services:
 
       # — firewall / WebUI passthrough —
       # - FIREWALL=on
+      - BLOCK_MALICIOUS=off
+      - BLOCK_SURVEILLANCE=off
+      - BLOCK_ADS=off
+      - PUBLICIP_ENABLED=off
+      - PUBLICIP_PERIOD=0
       - FIREWALL_INPUT_PORTS=8080
       - TZ="America/Kentucky/Louisville"
 
