@@ -51,9 +51,10 @@ services:
       # --- Mullvad WireGuard ---
       - VPN_SERVICE_PROVIDER=protonvpn        # alias VPNSP also works
       - VPN_TYPE=openvpn
-      - OPENVPN_USER=CDWB0bzUdV50Igry1
+      - OPENVPN_USER=CDWB0bzUdV50Igry+pmp
       - OPENVPN_PASSWORD=XLZlH11FBuM6cHSoaOejolNWaWJDhIJQ
       - PORT_FORWARD_ONLY=on
+      - VPN_PORT_FORWARDING=on
       - TZ="America/Kentucky/Louisville"
 
     volumes:
