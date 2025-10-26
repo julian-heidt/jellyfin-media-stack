@@ -51,28 +51,29 @@ services:
       # --- Mullvad WireGuard ---
       - VPN_SERVICE_PROVIDER=mullvad        # alias VPNSP also works
       - VPN_TYPE=wireguard
-      - WIREGUARD_ADDRESSES=10.70.95.99/32     # e.g. 10.x.y.z/32 from Mullvad config
+      - WIREGUARD_ADDRESSES=10.73.252.140/32     # e.g. 10.x.y.z/32 from Mullvad config
       - WIREGUARD_PRIVATE_KEY=r8cd5CZuDYoBfFCpLgdg87OcE0N71wcjATTnzrRWo1A=
+      - SERVER_CITIES=Berlin
       # — stabilize the tunnel —
-      #- WIREGUARD_ENDPOINT_PORT=53           # try 53, else 443
-      - WIREGUARD_MTU=1320                   # try 1360 → 1320 if needed
+      # - WIREGUARD_ENDPOINT_PORT=53           # try 53, else 443
+      # - WIREGUARD_MTU=1320                   # try 1360 → 1320 if needed
       # If kernel WG keeps failing on your platform, try:
-      - WIREGUARD_IMPLEMENTATION=userspace  # forces boringtun
+      # - WIREGUARD_IMPLEMENTATION=userspace  # forces boringtun
 
       # — DNS for this gluetun version (rename var) —
-      - DOT=off
-      - DNS_ADDRESS=10.64.0.1                # Mullvad WG DNS
+      # - DOT=off
+      # - DNS_ADDRESS=10.64.0.1                # Mullvad WG DNS
       # (remove any DNS_PLAINTEXT_ADDRESS / DNS_KEEP_NAMESERVER lines)
 
       # — stop brittle public IP probing —
-      - PUBLICIP_ENABLED=off
-      - PUBLICIP_PERIOD=0
+      # - PUBLICIP_ENABLED=off
+      # - PUBLICIP_PERIOD=0
 
       # — healthcheck tweak (optional) —
-      - HEALTH_TARGET_ADDRESS=1.1.1.1:443
+      # - HEALTH_TARGET_ADDRESS=1.1.1.1:443
 
       # — firewall / WebUI passthrough —
-      - FIREWALL=on
+      # - FIREWALL=on
       - FIREWALL_INPUT_PORTS=8080
       - TZ="America/Kentucky/Louisville"
 
