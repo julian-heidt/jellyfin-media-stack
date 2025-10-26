@@ -151,7 +151,7 @@ services:
       - LOG_LEVEL=info
       - TZ="America/Kentucky/Louisville"
     volumes:
-      - jellyseerr_config:/app/config
+      - /mnt/docker/jellyseerr/config:/app/config
     networks: [ media-net ]
     ports:
       - "5055:5055"
