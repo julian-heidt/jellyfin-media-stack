@@ -3,7 +3,7 @@ version: "3.8"
 x-common-env: &common-env
   PUID: "100"
   PGID: "100"
-  TZ: "Etc/UTC"
+  TZ: "America/Kentucky/Louisville"
   UMASK_SET: "002"
 
 networks:
@@ -60,9 +60,10 @@ services:
       - FIREWALL=on
       - FIREWALL_INPUT_PORTS=8080           # allow LAN to reach WebUI via host:8080
       # NOTE: Mullvad does NOT offer port forwarding; do not open torrent peer ports.
-      - TZ=${TZ}
+      - TZ="America/Kentucky/Louisville"
       - DOT=off                   # turn off DNS-over-TLS inside gluetun
-      - DNS_PLAINTEXT_ADDRESS=10.64.0.1     # Mullvad WireGuard DNS inside the tunnel
+      - DNS_ADDRESS=10.64.0.1     # Mullvad WireGuard DNS inside the tunnel
+      - DNS_KEEP_NAMESERVER=on
       # (Optional) avoid GitHub fetches for block lists at startup
       - BLOCK_MALICIOUS=off
       - BLOCK_SURVEILLANCE=off
@@ -84,12 +85,12 @@ services:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
     # Bind to gluetun's network namespace so traffic is forced through the VPN
-    network_mode: "service:gluetun"
+    network_mode: service:gluetun
     depends_on: [ gluetun ]
     environment:
       PUID: "100"
       PGID: "100"
-      TZ: "Etc/UTC"
+      TZ: "America/Kentucky/Louisville"
       UMASK: "002"     # LSIO uses UMASK; we map your UMASK_SET here
       WEBUI_PORT: "8080"
     volumes:
@@ -156,7 +157,7 @@ services:
     container_name: jellyseerr
     environment:
       - LOG_LEVEL=info
-      - TZ=${TZ}
+      - TZ="America/Kentucky/Louisville"
     volumes:
       - jellyseerr_config:/app/config
     networks: [ media-net ]
@@ -171,7 +172,7 @@ services:
     image: jellyfin/jellyfin:10.10.7
     container_name: jellyfin
     environment:
-      - TZ=${TZ}
+      - TZ="America/Kentucky/Louisville"
       - JELLYFIN_PublishedServerUrl=jellyfin.nacho
     volumes:
       - jellyfin_config:/config
