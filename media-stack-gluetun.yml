@@ -62,6 +62,10 @@ services:
       - TZ=${TZ}
       - DOT=off                   # turn off DNS-over-TLS inside gluetun
       - DNS_ADDRESS=10.64.0.1     # Mullvad WireGuard DNS inside the tunnel
+      # (Optional) avoid GitHub fetches for block lists at startup
+      - BLOCK_MALICIOUS=off
+      - BLOCK_SURVEILLANCE=off
+      - BLOCK_ADS=off
 
     volumes:
       - /lib/modules:/lib/modules:ro
