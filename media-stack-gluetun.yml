@@ -52,7 +52,7 @@ services:
       - VPN_SERVICE_PROVIDER=mullvad        # alias VPNSP also works
       - VPN_TYPE=wireguard
       - WIREGUARD_ADDRESSES=10.73.252.140/32     # e.g. 10.x.y.z/32 from Mullvad config
-      - WIREGUARD_PRIVATE_KEY=r8cd5CZuDYoBfFCpLgdg87OcE0N71wcjATTnzrRWo1A=
+      - WIREGUARD_PRIVATE_KEY=CuIugLD0qnlJHI6hCQCNkNOljlIwPYKrgwlmGgZ8XEk=
       - SERVER_CITIES=Berlin
       # — stabilize the tunnel —
       # - WIREGUARD_ENDPOINT_PORT=53           # try 53, else 443
@@ -61,7 +61,7 @@ services:
       # - WIREGUARD_IMPLEMENTATION=userspace  # forces boringtun
 
       # — DNS for this gluetun version (rename var) —
-      - DOT=off
+      # - DOT=off
       - DNS_ADDRESS=10.64.0.1                # Mullvad WG DNS
       # (remove any DNS_PLAINTEXT_ADDRESS / DNS_KEEP_NAMESERVER lines)
 
@@ -77,8 +77,8 @@ services:
       - BLOCK_MALICIOUS=off
       - BLOCK_SURVEILLANCE=off
       - BLOCK_ADS=off
-      - PUBLICIP_ENABLED=off
-      - PUBLICIP_PERIOD=0
+      # - PUBLICIP_ENABLED=off
+      # - PUBLICIP_PERIOD=0
       # - FIREWALL_INPUT_PORTS=8080
       - TZ="America/Kentucky/Louisville"
 
