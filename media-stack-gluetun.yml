@@ -54,6 +54,7 @@ services:
       - OPENVPN_USER=REDACTED
       - OPENVPN_PASSWORD=REDACTED
       - PORT_FORWARD_ONLY=on
+      - VPN_PORT_FORWARDING=on
       - TZ="America/Kentucky/Louisville"
 
     volumes:
