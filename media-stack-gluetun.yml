@@ -61,7 +61,7 @@ services:
       # - WIREGUARD_IMPLEMENTATION=userspace  # forces boringtun
 
       # — DNS for this gluetun version (rename var) —
-      # - DOT=off
+      - DOT=off
       - DNS_ADDRESS=10.64.0.1                # Mullvad WG DNS
       # (remove any DNS_PLAINTEXT_ADDRESS / DNS_KEEP_NAMESERVER lines)
 
@@ -79,7 +79,7 @@ services:
       - BLOCK_ADS=off
       - PUBLICIP_ENABLED=off
       - PUBLICIP_PERIOD=0
-      - FIREWALL_INPUT_PORTS=8080
+      # - FIREWALL_INPUT_PORTS=8080
       - TZ="America/Kentucky/Louisville"
 
     volumes:
