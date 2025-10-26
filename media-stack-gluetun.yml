@@ -1,4 +1,46 @@
+version: "3.8"
+
+x-common-env: &common-env
+  PUID: "${PUID}"
+  PGID: "${PGID}"
+  TZ: "${TZ}"
+  UMASK_SET: "${UMASK_SET}"
+
+networks:
+  media-net:
+    name: media-net
+    external: true   # create once with: docker network create media-net
+
+volumes:
+  media_dir:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/media }
+  jellyfin_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyfin/config }
+  jellyfin_cache:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyfin/cache }
+  jellyseerr_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyseerr/config }
+  radarr_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/radarr }
+  sonarr_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/sonarr }
+  prowlarr_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/prowlarr }
+  qb_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/qbittorrent/ }
+
 services:
+  # ----------------------------------------------------------
+  # VPN gateway for qBittorrent (Mullvad + WireGuard)
+  # ----------------------------------------------------------
   gluetun:
     image: qmcgaw/gluetun:latest
     container_name: gluetun
@@ -6,46 +48,132 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     environment:
-      # --- Mullvad + WireGuard ---
-      - VPNSP=mullvad
+      # --- Mullvad WireGuard ---
+      - VPN_SERVICE_PROVIDER=mullvad        # alias VPNSP also works
       - VPN_TYPE=wireguard
       - WIREGUARD_PRIVATE_KEY=${WG_PRIVATE_KEY}   # from Mullvad config generator
-      - WIREGUARD_ADDRESS=${WG_ADDRESS}           # e.g. 10.x.y.z/32 from the same config
-      # Optionally pick an exit location (one of):
+      - WIREGUARD_ADDRESSES=${WG_ADDRESSES}       # e.g. 10.x.y.z/32 from Mullvad config
+      # Choose an exit location (one of the below lines, or remove both to auto-pick):
       - SERVER_COUNTRIES=Canada
       # - SERVER_CITIES=Chicago
       # --- Firewall / access ---
       - FIREWALL=on
-      - FIREWALL_INPUT_PORTS=8080                 # allow LAN to reach WebUI on host:8080
-      # No VPN input ports: Mullvad no longer supports port-forwarding.
-      # - FIREWALL_VPN_INPUT_PORTS=
-      # Optional: built-in HTTP proxy for *Arr/Prowlarr* via VPN
-      # - HTTPPROXY=on
-      # - HTTPPROXY_LISTENING_ADDRESS=:8888
+      - FIREWALL_INPUT_PORTS=8080           # allow LAN to reach WebUI via host:8080
+      # NOTE: Mullvad does NOT offer port forwarding; do not open torrent peer ports.
       - TZ=${TZ}
     volumes:
       - /lib/modules:/lib/modules:ro
       - qb_config:/gluetun
+    # Publish ONLY the WebUI; all other qBittorrent traffic egresses via VPN
     ports:
-      - "8080:8080/tcp"                           # qBittorrent WebUI via gluetun
-      # NOTE: Do NOT publish torrent peer ports with Mullvad (no PF support).
+      - "8080:8080/tcp"                     # qBittorrent WebUI through gluetun
     networks: [ media-net ]
     restart: unless-stopped
 
+  # ----------------------------------------------------------
+  # qBittorrent (all traffic bound to gluetun)
+  # ----------------------------------------------------------
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
-    network_mode: "service:gluetun"               # all traffic via VPN namespace
+    # Bind to gluetun's network namespace so traffic is forced through the VPN
+    network_mode: "service:gluetun"
     depends_on: [ gluetun ]
     environment:
       PUID: "${PUID}"
       PGID: "${PGID}"
       TZ: "${TZ}"
-      UMASK_SET: "${UMASK_SET}"
+      UMASK: "${UMASK_SET}"     # LSIO uses UMASK; we map your UMASK_SET here
       WEBUI_PORT: "8080"
-      # Optional: set a fixed listening port even without PF
-      # TORRENTING_PORT: "6881"
     volumes:
       - qb_config:/config
       - media_dir:/downloads
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Prowlarr
+  # (Optionally route via gluetun's HTTP proxy by setting HTTP(S)_PROXY below)
+  # ----------------------------------------------------------
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      <<: *common-env
+      # Optional: send only indexer egress via gluetun proxy (if enabled there)
+      # HTTP_PROXY:  http://gluetun:8888
+      # HTTPS_PROXY: http://gluetun:8888
+      # NO_PROXY:    localhost,127.0.0.1,radarr,sonarr,jellyfin,jellyseerr
+    volumes:
+      - prowlarr_config:/config
+      - media_dir:/data
+    networks: [ media-net ]
+    ports:
+      - "9696:9696"
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Radarr
+  # ----------------------------------------------------------
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment: *common-env
+    volumes:
+      - radarr_config:/config
+      - media_dir:/data
+    networks: [ media-net ]
+    ports:
+      - "7878:7878"
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Sonarr
+  # ----------------------------------------------------------
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment: *common-env
+    volumes:
+      - sonarr_config:/config
+      - media_dir:/data
+    networks: [ media-net ]
+    ports:
+      - "8989:8989"
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Jellyseerr
+  # ----------------------------------------------------------
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: jellyseerr
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ}
+    volumes:
+      - jellyseerr_config:/app/config
+    networks: [ media-net ]
+    ports:
+      - "5055:5055"
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Jellyfin (with VA-API devices)
+  # ----------------------------------------------------------
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - TZ=${TZ}
+      - JELLYFIN_PublishedServerUrl=jellyfin.nacho
+    volumes:
+      - jellyfin_config:/config
+      - jellyfin_cache:/cache
+      - media_dir:/media
+      - /dev/dri:/dev/dri
+    networks: [ media-net ]
+    ports:
+      - "8096:8096"
+      - "7359:7359/udp"
+      - "8920:8920"
     restart: unless-stopped
