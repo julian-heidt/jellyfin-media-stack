@@ -61,7 +61,7 @@ services:
       # NOTE: Mullvad does NOT offer port forwarding; do not open torrent peer ports.
       - TZ=${TZ}
       - DOT=off                   # turn off DNS-over-TLS inside gluetun
-      - DNS_ADDRESS=10.64.0.1     # Mullvad WireGuard DNS inside the tunnel
+      - DNS_PLAINTEXT_ADDRESS=10.64.0.1     # Mullvad WireGuard DNS inside the tunnel
       # (Optional) avoid GitHub fetches for block lists at startup
       - BLOCK_MALICIOUS=off
       - BLOCK_SURVEILLANCE=off
