@@ -1,225 +1,51 @@
-version: "3.8"
-
-x-common-env: &common-env
-  PUID: "${PUID}"
-  PGID: "${PGID}"
-  TZ: "${TZ}"
-  UMASK_SET: "${UMASK_SET}"
-
-networks:
-  media-net:
-    external: true
-
-volumes:
-  media_dir:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/media }
-  jellyfin_config:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyfin/config }
-  jellyfin_cache:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyfin/cache }
-  jellyseerr_config:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/jellyseerr/config }
-  radarr_config:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/radarr }
-  sonarr_config:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/sonarr }
-  prowlarr_config:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/prowlarr }
-  qb_config:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /mnt/docker/qbittorrent/ }
-
 services:
-  qbittorrentvpn:
-    image: binhex/arch-qbittorrentvpn:latest
-    cap_add:
-      - NET_ADMIN
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add: [ NET_ADMIN ]
     devices:
       - /dev/net/tun:/dev/net/tun
     environment:
-      # --- core app/user ---
-      PUID: "1000"
-      PGID: "1000"
-      TZ: "Etc/UTC"
-      UMASK: "002"
+      # --- Mullvad + WireGuard ---
+      - VPNSP=mullvad
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${WG_PRIVATE_KEY}   # from Mullvad config generator
+      - WIREGUARD_ADDRESS=${WG_ADDRESS}           # e.g. 10.x.y.z/32 from the same config
+      # Optionally pick an exit location (one of):
+      # - SERVER_COUNTRIES=United States
+      # - SERVER_CITIES=Chicago
+      # --- Firewall / access ---
+      - FIREWALL=on
+      - FIREWALL_INPUT_PORTS=8080                 # allow LAN to reach WebUI on host:8080
+      # No VPN input ports: Mullvad no longer supports port-forwarding.
+      # - FIREWALL_VPN_INPUT_PORTS=
+      # Optional: built-in HTTP proxy for *Arr/Prowlarr* via VPN
+      # - HTTPPROXY=on
+      # - HTTPPROXY_LISTENING_ADDRESS=:8888
+      - TZ=${TZ}
+    volumes:
+      - /lib/modules:/lib/modules:ro
+      - qb_config:/gluetun
+    ports:
+      - "8080:8080/tcp"                           # qBittorrent WebUI via gluetun
+      # NOTE: Do NOT publish torrent peer ports with Mullvad (no PF support).
+    networks: [ media-net ]
+    restart: unless-stopped
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    network_mode: "service:gluetun"               # all traffic via VPN namespace
+    depends_on: [ gluetun ]
+    environment:
+      PUID: "${PUID}"
+      PGID: "${PGID}"
+      TZ: "${TZ}"
+      UMASK_SET: "${UMASK_SET}"
       WEBUI_PORT: "8080"
-      # --- VPN / WireGuard ---
-      VPN_ENABLED: "yes"
-      VPN_CLIENT: "wireguard"        # wireguard or openvpn
-      VPN_PROV: "custom"            
-      USERSPACE_WIREGUARD: "yes"
-      WG_SUDO: "1"    # Swarm-compatible (no privileged mode)
-      LAN_NETWORK: "10.0.4.0/24"  # your LAN in CIDR; allows local WebUI access
-      NAME_SERVERS: "192.168.4.1,1.1.1.1"  # or your preferred DNS
-      STRICT_PORT_FORWARD: "no"
-      ENABLE_STARTUP_SCRIPTS: "no"     # keep "yes" if your provider supports PF; otherwise "no"
-      # --- optional extras ---
-      ENABLE_PRIVOXY: "no"           # set "yes" to enable and expose port 8118
-      ENABLE_SOCKS: "no"
+      # Optional: set a fixed listening port even without PF
+      # TORRENTING_PORT: "6881"
     volumes:
       - qb_config:/config
       - media_dir:/downloads
-      - /lib/modules:/lib/modules
-    ports:
-      - target: 8080                 # WebUI only (mgmt traffic outside VPN)
-        published: 8080
-        protocol: tcp
-        mode: ingress
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints: [node.role == manager]
-      restart_policy:
-        condition: any
-        delay: 10s
-        window: 2m
-      update_config:
-        order: start-first
-        parallelism: 1
-        delay: 10s     # Web UI
-    networks: [ "media-net" ]
-    # After deploy: in qBittorrent Settings → Connection, set proxy host: gluetun, port: 8888, enable for peers as desired.
-
-  prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
-    environment:
-      <<: *common-env
-      HTTP_PROXY:  ${HTTP_PROXY}
-      HTTPS_PROXY: ${HTTPS_PROXY}
-      NO_PROXY:    ${NO_PROXY}
-    volumes:
-      - prowlarr_config:/config
-      - media_dir:/data
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints: [node.role == manager]
-      restart_policy:
-        condition: any
-        delay: 10s
-        window: 2m
-      update_config:
-        order: start-first
-        parallelism: 1
-        delay: 10s
-    networks: [ "media-net" ]
-    ports:
-      - 9696:9696 
-    # NOTE:
-    # - Outbound indexer traffic uses HTTP(S)_PROXY -> gluetun:8888 (VPN).
-    # - Internal calls to Sonarr/Radarr are excluded via NO_PROXY.
-
-
-  radarr:
-    image: lscr.io/linuxserver/radarr:latest
-    environment: *common-env
-    volumes:
-      - radarr_config:/config
-      - media_dir:/data
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints: [node.role == manager]
-      restart_policy:
-        condition: any
-        delay: 10s
-        window: 2m
-      update_config:
-        order: start-first
-        parallelism: 1
-        delay: 10s
-    networks: [ "media-net" ]
-    ports:
-      - target: 7878
-        published: 7878
-        protocol: tcp
-        mode: host
-
-  sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
-    environment: *common-env
-    volumes:
-      - sonarr_config:/config
-      - media_dir:/data
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints: [node.role == manager]
-      restart_policy:
-        condition: any
-        delay: 10s
-        window: 2m
-      update_config:
-        order: start-first
-        parallelism: 1
-        delay: 10s
-    networks: [ "media-net" ]
-    ports:
-      - target: 8989
-        published: 8989
-        protocol: tcp
-        mode: host
-
-  jellyseerr:
-    image: fallenbagel/jellyseerr:latest
-    environment:
-      - LOG_LEVEL=info
-      - TZ=${TZ}
-    volumes:
-      - jellyseerr_config:/app/config
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints: [node.role == manager]
-      restart_policy:
-        condition: any
-        delay: 10s
-        window: 2m
-      update_config:
-        order: start-first
-        parallelism: 1
-        delay: 10s
-    networks: [ "media-net" ]
-    ports:
-      - 5055:5055
-
-  jellyfin:
-    image: jellyfin/jellyfin:latest
-    environment:
-      - TZ=${TZ}
-      - JELLYFIN_PublishedServerUrl=jellyfin.nacho
-    volumes:
-      - jellyfin_config:/config
-      - jellyfin_cache:/cache
-      - media_dir:/media
-      - /dev/dri:/dev/dri        # expose VA-API devices
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints: [node.role == manager]   # pin to GPU host
-      restart_policy:
-        condition: any
-        delay: 10s
-        window: 2m
-      update_config:
-        order: start-first
-        parallelism: 1
-        delay: 10s
-    networks: [ "media-net" ]
-    ports:
-      - 8096:8096
-      - 7359:7359/udp
-      - 8920:8920
+    restart: unless-stopped
