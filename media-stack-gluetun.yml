@@ -54,6 +54,7 @@ services:
       - OPENVPN_USER=CDWB0bzUdV50Igry+pmp
       - OPENVPN_PASSWORD=XLZlH11FBuM6cHSoaOejolNWaWJDhIJQ
       - PORT_FORWARD_ONLY=off
+      - FIREWALL_VPN_INPUT_PORTS=53131
       - VPN_PORT_FORWARDING=on
       - SERVER_HOSTINGS=node-be-75.protonvpn.net
       - VPN_PORT_FORWARDING_PROVIDER=protonvpn
