@@ -53,8 +53,9 @@ services:
       - VPN_TYPE=openvpn
       - OPENVPN_USER=REDACTED
       - OPENVPN_PASSWORD=REDACTED
-      - PORT_FORWARD_ONLY=on
+      - PORT_FORWARD_ONLY=off
       - VPN_PORT_FORWARDING=on
+      - VPN_PORT_FORWARDING_PROVIDER=protonvpn
       - TZ="America/Kentucky/Louisville"
 
     volumes:
