@@ -27,7 +27,7 @@ services:
         delay: 10s
     networks:
       - media-net
-      - are-you-drunk-yet_drunk-net   # connect to your webapp overlay network
+      - drunk-app-stack_drunk-net   # connect to your webapp overlay network
 
 networks:
   media-net:
