@@ -153,6 +153,7 @@ services:
     environment:
       - LOG_LEVEL=info
       - TZ="America/Kentucky/Louisville"
+    user: 1000:1000
     volumes:
       - /mnt/docker/jellyseerr/config:/app/config
     networks: [ media-net ]
