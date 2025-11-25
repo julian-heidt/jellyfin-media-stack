@@ -168,6 +168,7 @@ services:
     image: jellyfin/jellyfin:10.10.7
     container_name: jellyfin
     group_add:
+      - 44
       - 993
     environment:
       - TZ="America/Kentucky/Louisville"
@@ -176,6 +177,7 @@ services:
       - jellyfin_config:/config
       - jellyfin_cache:/cache
       - media_dir:/media
+    devices:
       - /dev/dri:/dev/dri
       - /dev/kfd:/dev/kfd
     networks: [ media-net ]
