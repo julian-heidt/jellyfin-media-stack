@@ -166,6 +166,9 @@ services:
   jellyfin:
     image: jellyfin/jellyfin:10.10.7
     container_name: jellyfin
+    group_add:
+      - 993
+      - 44
     environment:
       - TZ="America/Kentucky/Louisville"
       - JELLYFIN_PublishedServerUrl=jellyfin.nacho
@@ -174,6 +177,7 @@ services:
       - jellyfin_cache:/cache
       - media_dir:/media
       - /dev/dri:/dev/dri
+      - /dev/kfd:/dev/kfd
     networks: [ media-net ]
     ports:
       - "8096:8096"
