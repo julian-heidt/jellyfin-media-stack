@@ -169,7 +169,6 @@ services:
     container_name: jellyfin
     group_add:
       - 993
-      - 44
     environment:
       - TZ="America/Kentucky/Louisville"
       - JELLYFIN_PublishedServerUrl=jellyfin.nacho
