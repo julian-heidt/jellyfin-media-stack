@@ -385,22 +385,6 @@ client_max_body_size 20M;
 - Enable 2FA where available
 - Keep all containers updated regularly
 
-### API Key Protection
-- Treat API keys like passwords
-- Don't commit them to Git repositories
-- Regenerate if compromised
-
-### Environment File Security
-- The `stack.env` file contains sensitive credentials (VPN username/password, etc.)
-- This file is in `.gitignore` to prevent accidental commits
-- **Important**: If `stack.env` was previously tracked by Git, you should remove it from tracking:
-  ```bash
-  git rm --cached stack.env
-  git commit -m "Remove stack.env from tracking"
-  ```
-- Alternatively, use `git-crypt` or similar tools to encrypt sensitive files in your repository
-- Always use `stack.env.example` as a template and never commit actual credentials
-
 ### SSL/TLS
 - Always enable "Force SSL" in NPM
 - Enable HSTS for additional security
