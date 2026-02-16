@@ -139,36 +139,31 @@ cd jellyfin-media-stack
 
 ### Step 2: Configure Environment Variables
 
-Edit `stack.env` to match your preferences:
+Copy the example environment file and edit it with your settings:
 
 ```bash
+cp stack.env.example stack.env
 nano stack.env
 ```
 
 Key variables to configure:
 - `TZ`: Your timezone (e.g., `America/New_York`)
 - `PUID` and `PGID`: Your user and group IDs (run `id` command to find these)
+- `OPENVPN_USER`: Your ProtonVPN username
+- `OPENVPN_PASSWORD`: Your ProtonVPN password
+- `JELLYFIN_PublishedServerUrl`: Your Jellyfin public URL (e.g., `jellyfin.yourdomain.com`)
 
-### Step 3: Configure VPN Credentials
+**Note**: VPN configuration settings (server, port forwarding, etc.) are in `media-stack-gluetun.yml` and can be modified there.
 
-Edit `media-stack-gluetun.yml` and update the ProtonVPN credentials:
+**Important**: The `stack.env` file contains sensitive credentials and is excluded from Git. Never commit this file to version control.
 
-```yaml
-environment:
-  - OPENVPN_USER=your_protonvpn_username
-  - OPENVPN_PASSWORD=your_protonvpn_password
-  - SERVER_HOSTINGS=node-xx-xx.protonvpn.net  # Choose a server that supports port forwarding
-```
-
-**Note**: Keep your VPN credentials secure. Consider using Docker secrets or environment files that are not committed to Git.
-
-### Step 4: Create Docker Network
+### Step 3: Create Docker Network
 
 ```bash
 docker network create media-net
 ```
 
-### Step 5: Deploy Nginx Proxy Manager
+### Step 4: Deploy Nginx Proxy Manager
 
 First, deploy the Nginx Proxy Manager:
 
@@ -184,13 +179,13 @@ Wait for it to start (about 30 seconds), then access the admin interface at `htt
 
 **Important**: Change these credentials immediately after first login!
 
-### Step 6: Deploy Media Stack
+### Step 5: Deploy Media Stack
 
 ```bash
 docker compose -f media-stack-gluetun.yml up -d
 ```
 
-### Step 7: Verify All Services Are Running
+### Step 6: Verify All Services Are Running
 
 ```bash
 docker ps
@@ -394,6 +389,17 @@ client_max_body_size 20M;
 - Treat API keys like passwords
 - Don't commit them to Git repositories
 - Regenerate if compromised
+
+### Environment File Security
+- The `stack.env` file contains sensitive credentials (VPN username/password, etc.)
+- This file is in `.gitignore` to prevent accidental commits
+- **Important**: If `stack.env` was previously tracked by Git, you should remove it from tracking:
+  ```bash
+  git rm --cached stack.env
+  git commit -m "Remove stack.env from tracking"
+  ```
+- Alternatively, use `git-crypt` or similar tools to encrypt sensitive files in your repository
+- Always use `stack.env.example` as a template and never commit actual credentials
 
 ### SSL/TLS
 - Always enable "Force SSL" in NPM
