@@ -1,11 +1,11 @@
-# Jellyfin Media Stack with Nginx Proxy Manager
+# Jellyfin Media Compose with Nginx Proxy Manager
 
 A complete, production-ready Docker Compose setup for a self-hosted media server featuring Jellyfin, automated content management with the *arr apps, VPN-protected torrenting, and domain routing via Nginx Proxy Manager.
 
 ## 📋 Table of Contents
 
 - [Overview](#overview)
-- [Stack Components](#stack-components)
+- [Compose Components](#Compose-components)
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
 - [Directory Structure](#directory-structure)
@@ -19,7 +19,7 @@ A complete, production-ready Docker Compose setup for a self-hosted media server
 
 ## 🎯 Overview
 
-This stack provides a complete media automation and streaming solution:
+This Compose provides a complete media automation and streaming solution:
 - **Jellyfin** for streaming your media library
 - **Sonarr** for TV show management
 - **Radarr** for movie management
@@ -30,7 +30,7 @@ This stack provides a complete media automation and streaming solution:
 
 All services are containerized and can be accessed through your own custom domain with automatic HTTPS certificates.
 
-## 🧩 Stack Components
+## 🧩 Compose Components
 
 ### Core Services
 
@@ -179,7 +179,7 @@ Wait for it to start (about 30 seconds), then access the admin interface at `htt
 
 **Important**: Change these credentials immediately after first login!
 
-### Step 5: Deploy Media Stack
+### Step 5: Deploy Media Compose
 
 ```bash
 docker compose -f media-stack-gluetun.yml up -d
