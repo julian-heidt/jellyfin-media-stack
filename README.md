@@ -151,8 +151,9 @@ Key variables to configure:
 - `PUID` and `PGID`: Your user and group IDs (run `id` command to find these)
 - `OPENVPN_USER`: Your ProtonVPN username
 - `OPENVPN_PASSWORD`: Your ProtonVPN password
-- `SERVER_HOSTINGS`: ProtonVPN server (e.g., `node-xx-xx.protonvpn.net`) - Choose a server that supports port forwarding
 - `JELLYFIN_PublishedServerUrl`: Your Jellyfin public URL (e.g., `jellyfin.yourdomain.com`)
+
+**Note**: VPN configuration settings (server, port forwarding, etc.) are in `media-stack-gluetun.yml` and can be modified there.
 
 **Important**: The `stack.env` file contains sensitive credentials and is excluded from Git. Never commit this file to version control.
 

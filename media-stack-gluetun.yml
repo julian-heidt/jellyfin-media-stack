@@ -43,6 +43,16 @@ services:
       - /dev/net/tun:/dev/net/tun
     env_file:
       - stack.env
+    environment:
+      # --- ProtonVPN OpenVPN Configuration ---
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=openvpn
+      # OPENVPN_USER and OPENVPN_PASSWORD are loaded from stack.env
+      - PORT_FORWARD_ONLY=off
+      - FIREWALL_VPN_INPUT_PORTS=53131
+      - VPN_PORT_FORWARDING=on
+      - SERVER_HOSTINGS=node-be-75.protonvpn.net
+      - VPN_PORT_FORWARDING_PROVIDER=protonvpn
     volumes:
       - /lib/modules:/lib/modules:ro
       - qb_config:/gluetun
