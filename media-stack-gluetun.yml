@@ -1,11 +1,5 @@
 version: "3.8"
 
-x-common-env: &common-env
-  PUID: "1000"
-  PGID: "1000"
-  TZ: "America/Kentucky/Louisville"
-  UMASK_SET: "002"
-
 networks:
   media-net:
     name: media-net
@@ -47,19 +41,8 @@ services:
     cap_add: [ NET_ADMIN ]
     devices:
       - /dev/net/tun:/dev/net/tun
-    environment:
-      # --- ProtonVPN OpenVPN ---
-      - VPN_SERVICE_PROVIDER=protonvpn        # alias VPNSP also works
-      - VPN_TYPE=openvpn
-      - OPENVPN_USER=CDWB0bzUdV50Igry+pmp
-      - OPENVPN_PASSWORD=XLZlH11FBuM6cHSoaOejolNWaWJDhIJQ
-      - PORT_FORWARD_ONLY=off
-      - FIREWALL_VPN_INPUT_PORTS=53131
-      - VPN_PORT_FORWARDING=on
-      - SERVER_HOSTINGS=node-be-75.protonvpn.net
-      - VPN_PORT_FORWARDING_PROVIDER=protonvpn
-      - TZ="America/Kentucky/Louisville"
-
+    env_file:
+      - stack.env
     volumes:
       - /lib/modules:/lib/modules:ro
       - qb_config:/gluetun
@@ -78,12 +61,11 @@ services:
     # Bind to gluetun's network namespace so traffic is forced through the VPN
     network_mode: service:gluetun
     depends_on: [ gluetun ]
+    env_file:
+      - stack.env
     environment:
-      PUID: "1000"
-      PGID: "1000"
-      TZ: "America/Kentucky/Louisville"
-      UMASK: "002"     # LSIO uses UMASK; we map your UMASK_SET here
-      WEBUI_PORT: "8080"
+      UMASK: ${UMASK_SET}     # LSIO uses UMASK; we map your UMASK_SET here
+      WEBUI_PORT: ${QBITTORRENT_WEBUI_PORT}
     volumes:
       - qb_config:/config
       - media_dir:/data
@@ -96,12 +78,13 @@ services:
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
-    environment:
-      <<: *common-env
-      # Optional: send only indexer egress via gluetun proxy (if enabled there)
-      # HTTP_PROXY:  http://gluetun:8888
-      # HTTPS_PROXY: http://gluetun:8888
-      # NO_PROXY:    localhost,127.0.0.1,radarr,sonarr,jellyfin,jellyseerr
+    env_file:
+      - stack.env
+    # Optional proxy settings (uncomment if needed):
+    # environment:
+    #   HTTP_PROXY:  http://gluetun:8888
+    #   HTTPS_PROXY: http://gluetun:8888
+    #   NO_PROXY:    localhost,127.0.0.1,radarr,sonarr,jellyfin,jellyseerr
     volumes:
       - prowlarr_config:/config
       - media_dir:/data
@@ -116,9 +99,8 @@ services:
   radarr:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
-    environment: 
-      PUID: "1000"
-      PGID: "1000"
+    env_file:
+      - stack.env
     volumes:
       - radarr_config:/config
       - media_dir:/data
@@ -133,9 +115,8 @@ services:
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
-    environment: 
-      PUID: "1000"
-      PGID: "1000"
+    env_file:
+      - stack.env
     volumes:
       - sonarr_config:/config
       - media_dir:/data
@@ -150,10 +131,11 @@ services:
   jellyseerr:
     image: fallenbagel/jellyseerr:latest
     container_name: jellyseerr
+    env_file:
+      - stack.env
     environment:
       - LOG_LEVEL=info
-      - TZ="America/Kentucky/Louisville"
-    user: 1000:1000
+    user: ${PUID}:${PGID}
     volumes:
       - /mnt/docker/jellyseerr/config:/app/config
     networks: [ media-net ]
@@ -170,9 +152,8 @@ services:
     group_add:
       - 44
       - 993
-    environment:
-      - TZ="America/Kentucky/Louisville"
-      - JELLYFIN_PublishedServerUrl=jellyfin.nacho
+    env_file:
+      - stack.env
     volumes:
       - jellyfin_config:/config
       - jellyfin_cache:/cache

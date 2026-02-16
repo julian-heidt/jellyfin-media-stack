@@ -3,8 +3,8 @@ version: "3.8"
 services:
   npm:
     image: jc21/nginx-proxy-manager:latest
-    environment:
-      - TZ=${TZ}
+    env_file:
+      - stack.env
     ports:
       - "80:80"
       - "81:81"        # Admin UI
