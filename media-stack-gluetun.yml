@@ -64,8 +64,8 @@ services:
     env_file:
       - stack.env
     environment:
-      UMASK: ${UMASK_SET}     # LSIO uses UMASK; we map your UMASK_SET here
-      WEBUI_PORT: ${QBITTORRENT_WEBUI_PORT}
+      UMASK: "002"     # LSIO uses UMASK instead of UMASK_SET
+      WEBUI_PORT: "8080"
     volumes:
       - qb_config:/config
       - media_dir:/data
@@ -135,7 +135,7 @@ services:
       - stack.env
     environment:
       - LOG_LEVEL=info
-    user: ${PUID}:${PGID}
+    user: "1000:1000"
     volumes:
       - /mnt/docker/jellyseerr/config:/app/config
     networks: [ media-net ]
