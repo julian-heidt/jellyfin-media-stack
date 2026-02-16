@@ -39,7 +39,7 @@ volumes:
 
 services:
   # ----------------------------------------------------------
-  # VPN gateway for qBittorrent (Mullvad + WireGuard)
+  # VPN gateway for qBittorrent (Proton + OpenVPN)
   # ----------------------------------------------------------
   gluetun:
     image: qmcgaw/gluetun:latest
@@ -48,7 +48,7 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     environment:
-      # --- Mullvad WireGuard ---
+      # --- ProtonVPN OpenVPN ---
       - VPN_SERVICE_PROVIDER=protonvpn        # alias VPNSP also works
       - VPN_TYPE=openvpn
       - OPENVPN_USER=CDWB0bzUdV50Igry+pmp
