@@ -164,6 +164,7 @@ services:
       - 993
     env_file:
       - stack.env
+    user: "1000:1000"
     volumes:
       - jellyfin_config:/config
       - jellyfin_cache:/cache
