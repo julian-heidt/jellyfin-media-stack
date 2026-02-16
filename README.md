@@ -57,15 +57,13 @@ Internet
     ├─> Nginx Proxy Manager (Ports 80, 443)
     │       │
     │       ├─> jellyfin.yourdomain.com → Jellyfin (8096)
-    │       ├─> requests.yourdomain.com → Jellyseerr (5055)
-    │       ├─> sonarr.yourdomain.com → Sonarr (8989)
-    │       ├─> radarr.yourdomain.com → Radarr (7878)
-    │       ├─> prowlarr.yourdomain.com → Prowlarr (9696)
-    │       └─> torrents.yourdomain.com → qBittorrent (8080)
+    │       └─> requests.yourdomain.com → Jellyseerr (5055)
     │
     └─> VPN Gateway (Gluetun)
             └─> qBittorrent (all torrent traffic)
 ```
+
+**Note:** Other services (Sonarr, Radarr, Prowlarr, qBittorrent) can be accessed directly via their ports on your local network and do not need public domain routing.
 
 ### VPN Protection
 - qBittorrent runs within Gluetun's network namespace
@@ -216,33 +214,25 @@ Nginx Proxy Manager allows you to route your custom domain to Jellyfin and other
 
 ### Configure Router Port Forwarding
 
-Forward these ports from your router to your server:
-- Port **80** (HTTP) → Server IP:80
-- Port **443** (HTTPS) → Server IP:443
+Forward these ports from your router to your Nginx Proxy Manager (NPM):
+- Port **80** (HTTP) → NPM IP:80
+- Port **443** (HTTPS) → NPM IP:443
+
+**Note:** The NPM IP is typically the same as your server's local IP address where the Nginx Proxy Manager container is running.
 
 ### DNS Configuration
 
 At your domain registrar (e.g., Cloudflare, Namecheap, GoDaddy):
 
-1. Create an **A record** pointing to your public IP:
+1. Create **A records** pointing to your public IP for Jellyfin and Jellyseerr:
    ```
    jellyfin.yourdomain.com → Your_Public_IP
-   ```
-
-2. Optionally, create additional subdomains:
-   ```
    requests.yourdomain.com → Your_Public_IP
-   sonarr.yourdomain.com → Your_Public_IP
-   radarr.yourdomain.com → Your_Public_IP
-   prowlarr.yourdomain.com → Your_Public_IP
    ```
 
-   Or use a wildcard record:
-   ```
-   *.yourdomain.com → Your_Public_IP
-   ```
+2. Wait for DNS propagation (can take 5 minutes to 48 hours)
 
-3. Wait for DNS propagation (can take 5 minutes to 48 hours)
+**Note:** We're only setting up public domains for Jellyfin and Jellyseerr. Other services (Sonarr, Radarr, Prowlarr, qBittorrent) should remain on your local network for security reasons and can be accessed via their local ports.
 
 ### Add Proxy Host for Jellyfin
 
@@ -269,35 +259,37 @@ At your domain registrar (e.g., Cloudflare, Namecheap, GoDaddy):
 
 NPM will automatically request an SSL certificate from Let's Encrypt and configure HTTPS.
 
-### Add Proxy Hosts for Other Services
+### Add Proxy Host for Jellyseerr
 
-Repeat the above process for each service:
+Repeat the same process for Jellyseerr (Media Requests):
 
-#### Jellyseerr (Media Requests)
-- Domain: `requests.yourdomain.com`
-- Forward to: `jellyseerr:5055`
-- Enable SSL and Websockets
+1. In Nginx Proxy Manager, click **Proxy Hosts** → **Add Proxy Host**
 
-#### Sonarr
-- Domain: `sonarr.yourdomain.com`
-- Forward to: `sonarr:8989`
-- Enable SSL and Websockets
+2. **Details Tab:**
+   - **Domain Names:** `requests.yourdomain.com`
+   - **Scheme:** `http`
+   - **Forward Hostname/IP:** `jellyseerr` (container name)
+   - **Forward Port:** `5055`
+   - **Cache Assets:** ✓ (enabled)
+   - **Block Common Exploits:** ✓ (enabled)
+   - **Websockets Support:** ✓ (enabled)
 
-#### Radarr
-- Domain: `radarr.yourdomain.com`
-- Forward to: `radarr:7878`
-- Enable SSL and Websockets
+3. **SSL Tab:**
+   - **SSL Certificate:** Select "Request a new SSL Certificate"
+   - **Force SSL:** ✓ (enabled)
+   - **HTTP/2 Support:** ✓ (enabled)
+   - **HSTS Enabled:** ✓ (enabled)
+   - **Email Address:** Your email for Let's Encrypt notifications
+   - **I Agree to the Let's Encrypt Terms of Service:** ✓
 
-#### Prowlarr
-- Domain: `prowlarr.yourdomain.com`
-- Forward to: `prowlarr:9696`
-- Enable SSL and Websockets
+4. **Click Save**
 
-#### qBittorrent (Optional - Be Careful!)
-- Domain: `torrents.yourdomain.com`
-- Forward to: `gluetun:8080` (via VPN container)
-- Enable SSL
-- **Security Note:** Consider adding Access List restrictions
+**Accessing Other Services:**
+Other services like Sonarr, Radarr, Prowlarr, and qBittorrent should be accessed locally via their ports for security:
+- Sonarr: `http://your-server-ip:8989`
+- Radarr: `http://your-server-ip:7878`
+- Prowlarr: `http://your-server-ip:9696`
+- qBittorrent: `http://your-server-ip:8080`
 
 ### Advanced: Custom Nginx Configuration
 
