@@ -10,11 +10,15 @@ services:
     volumes:
       - /mnt/docker/nginxproxymanager/data:/data
       - /mnt/docker/nginxproxymanager/letsencrypt:/etc/letsencrypt
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:81"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     deploy:
       mode: replicated
       replicas: 1
-      # placement:
-      #   constraints: [node.role == manager]   # keep NPM on the manager
       restart_policy:
         condition: any
         delay: 10s
@@ -23,6 +27,12 @@ services:
         order: start-first
         parallelism: 1
         delay: 10s
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.00"
+        reservations:
+          memory: 256M
     networks:
       - media-net
       - drunk-app-stack_drunk-net   # connect to your webapp overlay network
