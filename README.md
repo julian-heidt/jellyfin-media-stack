@@ -24,6 +24,7 @@ This Compose provides a complete media automation and streaming solution:
 - **Sonarr** for TV show management
 - **Radarr** for movie management
 - **Prowlarr** for indexer management
+- **FlareSolverr** for passing Cloudflare challenges on Prowlarr indexers
 - **qBittorrent** for downloading content (VPN-protected via Gluetun)
 - **Jellyseerr** for media requests
 - **Nginx Proxy Manager** for reverse proxy with SSL certificates
@@ -40,6 +41,7 @@ All services are containerized and can be accessed through your own custom domai
 | **Sonarr** | 8989 | TV show management |
 | **Radarr** | 7878 | Movie management |
 | **Prowlarr** | 9696 | Indexer management |
+| **FlareSolverr** | 8191 (internal only) | Cloudflare challenge solver for Prowlarr |
 | **qBittorrent** | 8080 | Torrent client (VPN-protected) |
 | **Jellyseerr** | 5055 | Media request platform |
 | **Nginx Proxy Manager** | 81 | Admin UI for proxy configuration |
@@ -337,6 +339,30 @@ client_max_body_size 20M;
    - Add Sonarr (URL: `http://sonarr:8989`)
    - Add Radarr (URL: `http://radarr:7878`)
    - Get API keys from each service's Settings → General
+
+#### FlareSolverr for Cloudflare-protected indexers
+
+FlareSolverr is a proxy that drives a headless Chromium browser to pass the Cloudflare challenge on an indexer's website. Prowlarr sends the request to FlareSolverr, which returns the page and the clearance cookies.
+
+The stack runs it as the `flaresolverr` service on `media-net`. To use it, add it to Prowlarr as an indexer proxy.
+
+1. In Prowlarr, go to **Settings**, then **Indexers**.
+2. Under **Indexer Proxies**, click **+** and choose **FlareSolverr**.
+3. Enter a **Name** and create a **Tags** entry such as `flaresolverr`.
+4. Set **Host** to `http://flaresolverr:8191`.
+5. Optionally set **Request Timeout** to a value between 1 and 180 seconds. The default is 60.
+6. Click **Test**, then **Save**.
+7. Open each Cloudflare-protected indexer, add the same tag, then click **Test** and **Save**.
+
+Prowlarr applies the proxy only to indexers that carry its tag, so a proxy that no indexer carries stays disabled.
+
+Prowlarr and FlareSolverr must leave through the same public IP, because the clearance cookies are only valid for the IP that solved the challenge. Both run on `media-net` outside the VPN, so they match today. If you ever put Prowlarr behind Gluetun, put FlareSolverr behind it too.
+
+FlareSolverr starts a Chromium instance for every request, so memory use climbs with the number of concurrent requests. It idles at roughly 50 to 75 MiB, and the compose file caps it at 1G of memory and one CPU.
+
+With this service added, the memory limits across both compose files total about 8.5 GB, which is more than an 8 GB host has. Limits are caps, not reservations, so this only matters if the services peak together. If the host starts swapping, lower another service's limit.
+
+The compose file does not publish port 8191, on purpose. The FlareSolverr project advises against exposing it to the internet, and only Prowlarr needs to reach it. To check that it is healthy, run `docker exec flaresolverr curl -sf http://localhost:8191/health`, which prints `{"status": "ok"}`.
 
 ### Sonarr Setup
 
