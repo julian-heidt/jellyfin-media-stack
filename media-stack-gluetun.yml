@@ -144,6 +144,37 @@ services:
           memory: 128M
 
   # ----------------------------------------------------------
+  # FlareSolverr (Cloudflare challenge solver for Prowlarr)
+  # Prowlarr reaches it at http://flaresolverr:8191 and both must share the same
+  # egress IP, so if Prowlarr ever moves behind gluetun this service must move too.
+  # ----------------------------------------------------------
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
+    container_name: flaresolverr
+    # No env_file on purpose. FlareSolverr runs a browser against untrusted sites,
+    # so it does not receive stack.env. TZ sets the timezone for its logs and its browser.
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=Etc/UTC
+    networks: [ media-net ]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8191/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.00"
+        reservations:
+          memory: 256M
+
+  # ----------------------------------------------------------
   # Radarr
   # ----------------------------------------------------------
   radarr:
