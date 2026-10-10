@@ -34,6 +34,8 @@ services:
   # VPN gateway for qBittorrent (Proton + OpenVPN)
   # ----------------------------------------------------------
   gluetun:
+    # Stays on latest on purpose. That tag is the development edge, and the maintainer prefers users on it.
+    # Pin v3 instead if you want the stable line.
     image: qmcgaw/gluetun:latest
     container_name: gluetun
     cap_add: [ NET_ADMIN ]
@@ -46,12 +48,13 @@ services:
       - VPN_SERVICE_PROVIDER=protonvpn
       - VPN_TYPE=openvpn
       # OPENVPN_USER and OPENVPN_PASSWORD are loaded from stack.env
+      # PORT_FORWARD_ONLY=off overrides gluetun's Proton default and can select servers without forwarding.
+      # The README key variables section explains the forwarding setup.
       - PORT_FORWARD_ONLY=off
       - VPN_PORT_FORWARDING=on
       - VPN_PORT_FORWARDING_PROVIDER=protonvpn
-      # Loaded from stack.env:
-      - FIREWALL_VPN_INPUT_PORTS=${FIREWALL_VPN_INPUT_PORTS}
-      - SERVER_HOSTINGS=${SERVER_HOSTINGS}
+      # FIREWALL_VPN_INPUT_PORTS and SERVER_HOSTNAMES come from stack.env through env_file.
+      # An interpolated entry here resolves empty under plain docker compose and overrides the file.
     volumes:
       - /lib/modules:/lib/modules:ro
       - qb_config:/gluetun
@@ -78,7 +81,7 @@ services:
   # qBittorrent (all traffic bound to gluetun)
   # ----------------------------------------------------------
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
+    image: lscr.io/linuxserver/qbittorrent:5.2.4
     container_name: qbittorrent
     # Bind to gluetun's network namespace so traffic is forced through the VPN
     network_mode: service:gluetun
@@ -88,7 +91,7 @@ services:
     env_file:
       - stack.env
     environment:
-      UMASK: "002"     # LSIO uses UMASK instead of UMASK_SET
+      UMASK: "002"     # LSIO images read UMASK
       WEBUI_PORT: "8080"
     volumes:
       - qb_config:/config
@@ -110,18 +113,12 @@ services:
 
   # ----------------------------------------------------------
   # Prowlarr
-  # (Optionally route via gluetun's HTTP proxy by setting HTTP(S)_PROXY below)
   # ----------------------------------------------------------
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
+    image: lscr.io/linuxserver/prowlarr:2.6.5
     container_name: prowlarr
     env_file:
       - stack.env
-    # Optional proxy settings (uncomment if needed):
-    # environment:
-    #   HTTP_PROXY:  http://gluetun:8888
-    #   HTTPS_PROXY: http://gluetun:8888
-    #   NO_PROXY:    localhost,127.0.0.1,radarr,sonarr,jellyfin,jellyseerr
     volumes:
       - prowlarr_config:/config
       - media_dir:/data
@@ -147,7 +144,7 @@ services:
   # Radarr
   # ----------------------------------------------------------
   radarr:
-    image: lscr.io/linuxserver/radarr:latest
+    image: lscr.io/linuxserver/radarr:6.4.4
     container_name: radarr
     env_file:
       - stack.env
@@ -176,7 +173,7 @@ services:
   # Sonarr
   # ----------------------------------------------------------
   sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
+    image: lscr.io/linuxserver/sonarr:4.0.20
     container_name: sonarr
     env_file:
       - stack.env
@@ -205,7 +202,7 @@ services:
   # Jellyseerr
   # ----------------------------------------------------------
   jellyseerr:
-    image: fallenbagel/jellyseerr:latest
+    image: fallenbagel/jellyseerr:2.7.3
     container_name: jellyseerr
     env_file:
       - stack.env
@@ -219,7 +216,8 @@ services:
       - "5055:5055"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:5055/api/v1/status"]
+      # The image has wget but not curl.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5055/api/v1/status"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -239,7 +237,9 @@ services:
   # GPU is added to the Z370-A board.
   # ----------------------------------------------------------
   jellyfin:
-    image: jellyfin/jellyfin:latest
+    # 12.x is a one-way upgrade from 10.11, and this tag is that upgrade for an existing install.
+    # Read the README Jellyfin 12 upgrade section before starting it.
+    image: jellyfin/jellyfin:12.2
     container_name: jellyfin
     env_file:
       - stack.env
