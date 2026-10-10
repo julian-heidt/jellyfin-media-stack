@@ -159,17 +159,23 @@ Key variables to configure:
 
 ### Step 3: Create Docker Network
 
+Swarm services cannot attach to a plain bridge network, so create `media-net` as an attachable overlay. Both Swarm services and docker compose containers can join it. Overlay networks need Swarm mode, so run `docker swarm init` first if this node is not in a swarm.
+
 ```bash
-docker network create media-net
+docker network create -d overlay --attachable media-net
 ```
+
+NPM also joins `drunk-app-stack_drunk-net`, which the drunk-app stack creates. That network must already exist or NPM will not start. The compose file for the media stack attaches to the same attachable overlay `media-net`.
 
 ### Step 4: Deploy Nginx Proxy Manager
 
-First, deploy the Nginx Proxy Manager:
+Deploy Nginx Proxy Manager as a Swarm service. The stack name is `npm`:
 
 ```bash
-docker compose -f nginx-proxy-manager.yml up -d
+docker stack deploy -c nginx-proxy-manager.yml npm
 ```
+
+The media stack runs under docker compose on one node, while NPM runs as a Swarm service. NPM updates use stop-first ordering, so the proxy is down for about 30 seconds during each update, plus any image pull time.
 
 Wait for it to start (about 30 seconds), then access the admin interface at `http://your-server-ip:81`
 
@@ -418,7 +424,7 @@ sudo ufw enable
 ### SSL Certificate Issues
 - Verify ports 80 and 443 are open and forwarded
 - Check DNS propagation: `nslookup jellyfin.yourdomain.com`
-- Review NPM logs: `docker logs npm`
+- Review NPM logs: `docker service logs npm_npm`
 - Ensure email address is valid in Let's Encrypt settings
 
 ### Services Can't Communicate
@@ -483,9 +489,17 @@ docker network ls
 docker network inspect media-net
 
 # Remove and recreate network (stop services first)
+docker stack rm --detach=false npm
+docker compose -f media-stack-gluetun.yml down
 docker network rm media-net
-docker network create media-net
+docker network create -d overlay --attachable media-net
+
+# Redeploy NPM and bring the media stack back
+docker stack deploy -c nginx-proxy-manager.yml npm
+docker compose -f media-stack-gluetun.yml up -d
 ```
+
+`docker network rm` fails while tasks are still attached, so the stack must be removed first.
 
 ### Volume Management
 
