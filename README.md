@@ -99,7 +99,9 @@ Create the following directory structure on your host:
 sudo mkdir -p /mnt/docker/{jellyfin/{config,cache},sonarr,radarr,prowlarr,qbittorrent,jellyseerr/config,nginxproxymanager/{data,letsencrypt},media/{movies,tv,downloads/{complete,incomplete}}}
 ```
 
-Set proper ownership (adjust UID/GID as needed):
+Jellyfin and Jellyseerr run as `1000:1000`, set by the `user:` line in the compose file. qBittorrent, Prowlarr, Radarr and Sonarr use `PUID` and `PGID` from `stack.env`, which `stack.env.example` sets to 1000.
+
+The commands below assume all of them stay at 1000. If you change `PUID` and `PGID`, change both `user:` lines in the compose file to the same values and use those values in the `chown` command:
 
 ```bash
 sudo chown -R 1000:1000 /mnt/docker
@@ -233,7 +235,7 @@ Nginx Proxy Manager allows you to route your custom domain to Jellyfin and other
 ### Initial Setup
 
 1. Access NPM admin UI at `http://your-server-ip:81`
-2. Login with default credentials (or your new credentials)
+2. Create your admin account in the first-run setup wizard, or log in if you already did. Current NPM releases have no default login.
 3. Navigate to **Settings** → **Default Site** and configure as needed
 
 ### Configure Router Port Forwarding
@@ -338,7 +340,7 @@ client_max_body_size 20M;
 2. Complete the initial setup wizard:
    - Set admin username and password
    - Add media libraries pointing to `/media/movies` and `/media/tv`
-   - Configure hardware acceleration (VA-API is already configured)
+   - Leave hardware acceleration off. The compose file maps no GPU device, so Jellyfin transcodes on the CPU.
 
 3. Update the published server URL:
    - Go to **Dashboard** → **Networking**
@@ -348,12 +350,10 @@ client_max_body_size 20M;
 ### qBittorrent Setup
 
 1. Access qBittorrent at `http://your-server-ip:8080`
-2. Default credentials:
-   - Username: `admin`
-   - Password: `adminadmin`
-3. Change password immediately!
+2. Find the temporary password for the user `admin` with `docker logs qbittorrent`. qBittorrent generates a new one on every restart until you set your own.
+3. Set your own password on the **WebUI** tab under **Options**.
 4. Configure download paths:
-   - Navigate to **Settings** → **Downloads**
+   - Navigate to **Options**, then **Downloads**
    - Default Save Path: `/data/downloads/complete`
    - Temp Path: `/data/downloads/incomplete`
 
@@ -458,7 +458,7 @@ sudo ufw enable
 
 ### Jellyfin Can't Find Media
 - Verify directory permissions: `ls -la /mnt/docker/media`
-- Check that PUID/PGID match your user: `id`
+- Jellyfin runs as user `1000:1000` from the compose file and ignores `PUID` and `PGID`, so that user must be able to read the files.
 - Verify the media files are in the correct directories
 - Scan libraries in Jellyfin dashboard
 
@@ -475,7 +475,7 @@ sudo ufw enable
 - Ensure email address is valid in Let's Encrypt settings
 
 ### Services Can't Communicate
-- Verify all containers are on `media-net` network: `docker network inspect media-net`
+- Verify the containers are on the `media-net` network: `docker network inspect media-net`. The output lists `gluetun` but not `qbittorrent`, which shares Gluetun's network.
 - Recreate the network if needed
 - Check container logs for connection errors
 
@@ -487,13 +487,13 @@ sudo ufw enable
 
 ### Performance Issues
 - Check CPU/RAM usage: `docker stats`
-- Verify hardware acceleration is working in Jellyfin
+- Jellyfin transcodes on the CPU because the compose file maps no GPU device. Direct play avoids transcoding.
 - Consider adding more RAM or CPU cores
 - Check disk I/O performance
 
 ### Access Denied / Permission Errors
 - Verify file ownership: `sudo chown -R 1000:1000 /mnt/docker`
-- Check PUID/PGID settings in docker-compose files
+- Check `PUID` and `PGID` in `stack.env`. They apply to qBittorrent, Prowlarr, Radarr and Sonarr. Jellyfin and Jellyseerr run as `1000:1000` from the compose file.
 - Ensure UMASK is set correctly (002)
 
 ## 📝 Useful Commands
