@@ -179,11 +179,7 @@ The media stack runs under docker compose on one node, while NPM runs as a Swarm
 
 Wait for it to start (about 30 seconds), then access the admin interface at `http://your-server-ip:81`
 
-**Default credentials:**
-- Email: `admin@example.com`
-- Password: `changeme`
-
-**Important**: Change these credentials immediately after first login!
+NPM 2.13 and later show a setup wizard on first start, where you create the admin account. There is no default login.
 
 ### Step 5: Deploy Media Compose
 
