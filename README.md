@@ -153,11 +153,36 @@ Key variables to configure:
 - `PUID` and `PGID`: Your user and group IDs (run `id` command to find these)
 - `OPENVPN_USER`: Your ProtonVPN username
 - `OPENVPN_PASSWORD`: Your ProtonVPN password
+- `UMASK`: File creation mask, `002` by default. LinuxServer images read this exact name and ignore a variant with a `_SET` suffix.
+- `SERVER_HOSTNAMES`: Optional gluetun server filter. Leave it empty unless you want one specific server.
+- `FIREWALL_VPN_INPUT_PORTS`: Extra ports gluetun accepts from the VPN side. See the port forwarding notes below.
 - `JELLYFIN_PublishedServerUrl`: Your Jellyfin public URL (e.g., `jellyfin.yourdomain.com`)
 
-**Note**: VPN configuration settings (server, port forwarding, etc.) are in `media-stack-gluetun.yml` and can be modified there.
+All of these variables live in `stack.env`. Gluetun and the other services read the file through `env_file`, so a plain `docker compose up -d` picks them up. The compose file keeps only the fixed Proton settings.
 
 **Important**: The `stack.env` file contains sensitive credentials and is excluded from Git. Never commit this file to version control.
+
+#### VPN server filter
+
+`SERVER_HOSTNAMES` takes a comma-separated list of server hostnames, and gluetun connects only to those servers. If a hostname is not in gluetun's server list, gluetun fails to start, and a gluetun update that removes the hostname causes the same failure.
+
+List the current hostnames with the command from the gluetun servers wiki page, then pick one from the Hostname column:
+
+```bash
+docker run --rm -v /yourpath:/gluetun qmcgaw/gluetun format-servers -protonvpn
+```
+
+Replace `/yourpath` with any directory on the host. An empty `SERVER_HOSTNAMES` lets gluetun choose a server.
+
+#### ProtonVPN port forwarding
+
+Port forwarding with OpenVPN needs a `+pmp` suffix on `OPENVPN_USER`, for example `your_username+pmp`.
+
+Proton forwards a random port, which gluetun prints in its log. A fixed `FIREWALL_VPN_INPUT_PORTS` value cannot match it, so treat the value in `stack.env.example` as a placeholder.
+
+When `VPN_PORT_FORWARDING` is on, gluetun defaults `PORT_FORWARD_ONLY` to on for Proton, so it only selects servers that support forwarding.
+
+The current compose file sets `PORT_FORWARD_ONLY=off` on purpose until Julian reviews it. With that value gluetun can pick a server that has no forwarding.
 
 ### Step 3: Create Docker Network
 
@@ -491,13 +516,39 @@ docker compose -f media-stack-gluetun.yml down
 
 # Start all services
 docker compose -f media-stack-gluetun.yml up -d
-
-# Pull latest images
-docker compose -f media-stack-gluetun.yml pull
-
-# Update and restart services
-docker compose -f media-stack-gluetun.yml pull && docker compose -f media-stack-gluetun.yml up -d
 ```
+
+### Updating images
+
+The compose file pins every image except gluetun to a version tag, so `pull` on its own never changes what runs. To update a service:
+
+1. Read the release notes for the new version.
+2. Change the tag on that service's `image:` line in `media-stack-gluetun.yml`.
+3. Pull and recreate only that service.
+
+```bash
+docker compose -f media-stack-gluetun.yml pull sonarr
+docker compose -f media-stack-gluetun.yml up -d sonarr
+```
+
+Gluetun intentionally stays on `latest`, the project's development edge, because the gluetun maintainer prefers users on it. If an update breaks the VPN, set the tag to `v3` for the stable line.
+
+#### Jellyfin 12 upgrade
+
+Jellyfin 12.0 migrates the database on first start, and the migration is one way. A direct upgrade works only from 10.10.7 or 10.11.x. Version 12 also removes legacy API routes, so clients that call the old routes might stop working.
+
+Back up the Jellyfin configuration before you start the new image (see Backup Configuration below). Then:
+
+1. Pull the new image and start the container.
+2. Run a full library scan from the Jellyfin dashboard once the migration finishes.
+
+The compose file pins `jellyfin/jellyfin:12.2`, the same image `latest` resolved to when this pin was added. An existing 10.11 install migrates the first time you start that image.
+
+#### Jellyseerr is archived
+
+The `fallenbagel/jellyseerr` image is archived on Docker Hub. The compose file pins 2.7.3, the newest Jellyseerr version, and this repo does not use Seerr yet.
+
+The successor is Seerr (`ghcr.io/seerr-team/seerr`). It migrates the Jellyseerr database automatically on first start, and that migration is one way. It runs as uid 1000, needs `init: true`, and must not set a `user:` directive.
 
 ### Network Management
 
