@@ -1,7 +1,7 @@
 networks:
   media-net:
     name: media-net
-    external: true   # create once with: docker network create media-net
+    external: true   # create once on a Swarm manager with: docker network create -d overlay --attachable media-net
 
 volumes:
   media_dir:
