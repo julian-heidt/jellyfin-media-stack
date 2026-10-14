@@ -29,12 +29,6 @@ services:
         order: stop-first
         parallelism: 1
         delay: 10s
-      resources:
-        limits:
-          memory: 512M
-          cpus: "1.00"
-        reservations:
-          memory: 256M
     networks:
       - media-net
       - drunk-app-stack_drunk-net   # connect to your webapp overlay network
