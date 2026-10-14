@@ -1,9 +1,6 @@
 services:
   npm:
     image: jc21/nginx-proxy-manager:2.16.0
-    # stack.env supplies TZ, PUID and PGID. It also carries the VPN credentials; splitting it is a follow-up.
-    env_file:
-      - stack.env
     ports:
       - "80:80"
       - "81:81"        # Admin UI
