@@ -385,9 +385,7 @@ Prowlarr applies the proxy only to indexers that carry its tag, so a proxy that 
 
 Prowlarr and FlareSolverr must leave through the same public IP, because the clearance cookies are only valid for the IP that solved the challenge. Both run on `media-net` outside the VPN, so they match today. If you ever put Prowlarr behind Gluetun, put FlareSolverr behind it too.
 
-FlareSolverr starts a Chromium instance for every request, so memory use climbs with the number of concurrent requests. It idles at roughly 50 to 75 MiB, and the compose file caps it at 1G of memory and one CPU.
-
-With this service added, the memory limits across both compose files total about 8.5 GB, which is more than an 8 GB host has. Limits are caps, not reservations, so this only matters if the services peak together. If the host starts swapping, lower another service's limit.
+FlareSolverr starts a Chromium instance for every request, so memory use climbs with the number of concurrent requests. It idles at roughly 50 to 75 MiB. The compose file sets no limit, so a burst of requests can use as much memory as the host has.
 
 The compose file does not publish port 8191, on purpose. The FlareSolverr project advises against exposing it to the internet, and only Prowlarr needs to reach it. To check that it is healthy, run `docker exec flaresolverr curl -sf http://localhost:8191/health`, which prints `{"status": "ok"}`.
 
