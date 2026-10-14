@@ -72,13 +72,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "1.00"
-        reservations:
-          memory: 256M
 
   # ----------------------------------------------------------
   # qBittorrent (all traffic bound to gluetun)
@@ -106,13 +99,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "2.00"
-        reservations:
-          memory: 512M
 
   # ----------------------------------------------------------
   # Prowlarr
@@ -135,13 +121,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
-        reservations:
-          memory: 128M
 
   # ----------------------------------------------------------
   # FlareSolverr (Cloudflare challenge solver for Prowlarr)
@@ -166,13 +145,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "1.00"
-        reservations:
-          memory: 256M
 
   # ----------------------------------------------------------
   # Radarr
@@ -195,13 +167,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.50"
-        reservations:
-          memory: 256M
 
   # ----------------------------------------------------------
   # Sonarr
@@ -224,13 +189,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.50"
-        reservations:
-          memory: 256M
 
   # ----------------------------------------------------------
   # Jellyseerr
@@ -256,13 +214,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
-        reservations:
-          memory: 128M
 
   # ----------------------------------------------------------
   # Jellyfin
@@ -294,13 +245,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: "6.00"
-        reservations:
-          memory: 2G
 
   # ----------------------------------------------------------
   # ErsatzTV Legacy (24/7 channels for Jellyfin Live TV)
@@ -335,11 +279,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    deploy:
-      resources:
-        # These limits fit copy mode. Transcoded channels need about 2G and 2.00.
-        limits:
-          memory: 1G
-          cpus: "1.00"
-        reservations:
-          memory: 256M
