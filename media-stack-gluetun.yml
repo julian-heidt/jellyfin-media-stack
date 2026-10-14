@@ -77,7 +77,7 @@ services:
   # qBittorrent (all traffic bound to gluetun)
   # ----------------------------------------------------------
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:5.2.4
+    image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
     # Bind to gluetun's network namespace so traffic is forced through the VPN
     network_mode: service:gluetun
@@ -104,7 +104,7 @@ services:
   # Prowlarr
   # ----------------------------------------------------------
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:2.6.5
+    image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
     env_file:
       - stack.env
@@ -128,7 +128,7 @@ services:
   # egress IP, so if Prowlarr ever moves behind gluetun this service must move too.
   # ----------------------------------------------------------
   flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
+    image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
     # No env_file on purpose. FlareSolverr runs a browser against untrusted sites,
     # so it does not receive stack.env. TZ sets the timezone for its logs and its browser.
@@ -150,7 +150,7 @@ services:
   # Radarr
   # ----------------------------------------------------------
   radarr:
-    image: lscr.io/linuxserver/radarr:6.4.4
+    image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     env_file:
       - stack.env
@@ -172,7 +172,7 @@ services:
   # Sonarr
   # ----------------------------------------------------------
   sonarr:
-    image: lscr.io/linuxserver/sonarr:4.0.20
+    image: lscr.io/linuxserver/sonarr:latest  
     container_name: sonarr
     env_file:
       - stack.env
@@ -194,7 +194,7 @@ services:
   # Jellyseerr
   # ----------------------------------------------------------
   jellyseerr:
-    image: fallenbagel/jellyseerr:2.7.3
+    image: fallenbagel/jellyseerr:latest
     container_name: jellyseerr
     env_file:
       - stack.env
@@ -224,7 +224,7 @@ services:
   jellyfin:
     # 12.x is a one-way upgrade from 10.11, and this tag is that upgrade for an existing install.
     # Read the README Jellyfin 12 upgrade section before starting it.
-    image: jellyfin/jellyfin:12.2
+    image: jellyfin/jellyfin:latest
     container_name: jellyfin
     env_file:
       - stack.env
@@ -241,40 +241,6 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8096/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-  # ----------------------------------------------------------
-  # ErsatzTV Legacy (24/7 channels for Jellyfin Live TV)
-  # The project is in maintenance as ErsatzTV Legacy, with no new features, while bug and security fixes continue.
-  # Pin the tag and back up /mnt/docker/ersatztv before changing it, because downgrades are unsupported.
-  # ----------------------------------------------------------
-  ersatztv:
-    image: ersatztv/legacy:v26.11.1
-    container_name: ersatztv
-    # No env_file on purpose. stack.env carries the VPN credentials and ErsatzTV does not need them.
-    environment:
-      # Edit this value by hand to match TZ in stack.env so guide times line up. This service has no env_file, so stack.env does not supply it.
-      - TZ=Etc/UTC
-      # The image creates /transcode at the filesystem root by default, which a non-root user cannot do,
-      # so transcode scratch goes under the config bind.
-      - ETV_TRANSCODE_FOLDER=/config/transcode
-    # /mnt/docker/ersatztv must be owned by 1000:1000.
-    user: "1000:1000"
-    volumes:
-      - ersatztv_config:/config
-      # No media mount. ErsatzTV streams the files through the Jellyfin API.
-    networks: [ media-net ]
-    ports:
-      # The UI has no login, so keep it LAN-only and off NPM.
-      - "8409:8409"
-    restart: unless-stopped
-    healthcheck:
-      # The probe hits the unauthenticated playlist URL because /api routes need an API key since v26.8.1.
-      # If OIDC is enabled, confirm /iptv/channels.m3u still answers without a login or the container goes unhealthy.
-      test: ["CMD", "curl", "-sf", "http://localhost:8409/iptv/channels.m3u"]
       interval: 30s
       timeout: 10s
       retries: 3
