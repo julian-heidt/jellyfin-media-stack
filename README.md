@@ -27,6 +27,7 @@ This Compose provides a complete media automation and streaming solution:
 - **FlareSolverr** for passing Cloudflare challenges on Prowlarr indexers
 - **qBittorrent** for downloading content (VPN-protected via Gluetun)
 - **Jellyseerr** for media requests
+- **ErsatzTV** for 24/7 live TV channels built from the Jellyfin library
 - **Nginx Proxy Manager** for reverse proxy with SSL certificates
 
 All services are containerized and can be accessed through your own custom domain with automatic HTTPS certificates.
@@ -44,6 +45,7 @@ All services are containerized and can be accessed through your own custom domai
 | **FlareSolverr** | 8191 (internal only) | Cloudflare challenge solver for Prowlarr |
 | **qBittorrent** | 8080 | Torrent client (VPN-protected) |
 | **Jellyseerr** | 5055 | Media request platform |
+| **ErsatzTV** | 8409 | 24/7 channels for Jellyfin Live TV, LAN only |
 | **Nginx Proxy Manager** | 81 | Admin UI for proxy configuration |
 
 ### Supporting Infrastructure
@@ -65,7 +67,7 @@ Internet
             └─> qBittorrent (all torrent traffic)
 ```
 
-**Note:** Other services (Sonarr, Radarr, Prowlarr, qBittorrent) can be accessed directly via their ports on your local network and do not need public domain routing.
+**Note:** Other services, including Sonarr, Radarr, Prowlarr, qBittorrent and ErsatzTV, can be accessed directly via their ports on your local network and do not need public domain routing.
 
 ### VPN Protection
 - qBittorrent runs within Gluetun's network namespace
@@ -96,12 +98,13 @@ Internet
 Create the following directory structure on your host:
 
 ```bash
-sudo mkdir -p /mnt/docker/{jellyfin/{config,cache},sonarr,radarr,prowlarr,qbittorrent,jellyseerr/config,nginxproxymanager/{data,letsencrypt},media/{movies,tv,downloads/{complete,incomplete}}}
+sudo mkdir -p /mnt/docker/{jellyfin/{config,cache},sonarr,radarr,prowlarr,qbittorrent,jellyseerr/config,ersatztv,nginxproxymanager/{data,letsencrypt},media/{movies,tv,downloads/{complete,incomplete}}}
+sudo chown 1000:1000 /mnt/docker/ersatztv
 ```
 
-Jellyfin and Jellyseerr run as `1000:1000`, set by the `user:` line in the compose file. qBittorrent, Prowlarr, Radarr and Sonarr use `PUID` and `PGID` from `stack.env`, which `stack.env.example` sets to 1000.
+Jellyfin, Jellyseerr and ErsatzTV run as `1000:1000`, set by the `user:` line in the compose file. qBittorrent, Prowlarr, Radarr and Sonarr use `PUID` and `PGID` from `stack.env`, which `stack.env.example` sets to 1000.
 
-The commands below assume all of them stay at 1000. If you change `PUID` and `PGID`, change both `user:` lines in the compose file to the same values and use those values in the `chown` command:
+The commands below assume all of them stay at 1000. If you change `PUID` and `PGID`, change all three `user:` lines in the compose file to the same values and use those values in the `chown` command:
 
 ```bash
 sudo chown -R 1000:1000 /mnt/docker
@@ -121,6 +124,7 @@ sudo chmod -R 775 /mnt/docker
 ├── qbittorrent/         # qBittorrent configuration
 ├── jellyseerr/
 │   └── config/          # Jellyseerr configuration
+├── ersatztv/            # ErsatzTV configuration
 ├── nginxproxymanager/
 │   ├── data/            # NPM configuration
 │   └── letsencrypt/     # SSL certificates
@@ -160,7 +164,7 @@ Key variables to configure:
 - `FIREWALL_VPN_INPUT_PORTS`: Extra ports gluetun accepts from the VPN side. See the port forwarding notes below.
 - `JELLYFIN_PublishedServerUrl`: Your Jellyfin public URL (e.g., `jellyfin.yourdomain.com`)
 
-All of these variables live in `stack.env`. Gluetun and the other services read the file through `env_file`, so a plain `docker compose up -d` picks them up. The compose file keeps only the fixed Proton settings.
+All of these variables live in `stack.env`. Gluetun and the other services read the file through `env_file`, so `docker compose -f media-stack-gluetun.yml up -d` picks them up without an `--env-file` flag. The compose file keeps only the fixed Proton settings.
 
 **Important**: The `stack.env` file contains sensitive credentials and is excluded from Git. Never commit this file to version control.
 
@@ -385,11 +389,58 @@ Prowlarr applies the proxy only to indexers that carry its tag, so a proxy that 
 
 Prowlarr and FlareSolverr must leave through the same public IP, because the clearance cookies are only valid for the IP that solved the challenge. Both run on `media-net` outside the VPN, so they match today. If you ever put Prowlarr behind Gluetun, put FlareSolverr behind it too.
 
-FlareSolverr starts a Chromium instance for every request, so memory use climbs with the number of concurrent requests. It idles at roughly 50 to 75 MiB, and the compose file caps it at 1G of memory and one CPU.
-
-With this service added, the memory limits across both compose files total about 8.5 GB, which is more than an 8 GB host has. Limits are caps, not reservations, so this only matters if the services peak together. If the host starts swapping, lower another service's limit.
+FlareSolverr starts a Chromium instance for every request, so memory use climbs with the number of concurrent requests. It idles at roughly 50 to 75 MiB. The compose file sets no limit, so a burst of requests can use as much memory as the host has.
 
 The compose file does not publish port 8191, on purpose. The FlareSolverr project advises against exposing it to the internet, and only Prowlarr needs to reach it. To check that it is healthy, run `docker exec flaresolverr curl -sf http://localhost:8191/health`, which prints `{"status": "ok"}`.
+
+### ErsatzTV Setup
+
+ErsatzTV builds 24/7 linear channels from the Jellyfin library and serves them to Jellyfin Live TV. The stack runs it as the `ersatztv` service on `media-net`.
+
+The project is in maintenance as ErsatzTV Legacy, with no new features, while bug and security fixes continue. The compose file pins the tag to `v26.11.1`. Back up `/mnt/docker/ersatztv` before you change the tag, because ErsatzTV does not support downgrades.
+
+The container runs as `1000:1000`, set by the `user:` line in the compose file. The image creates `/transcode` at the filesystem root by default, which a non-root user cannot do, so the compose file sets `ETV_TRANSCODE_FOLDER` to `/config/transcode`. Transcode scratch files live under the config directory. Set `TZ` on the `ersatztv` service in the compose file to your time zone before the first start, because the service reads nothing from `stack.env` and the guide times follow that value.
+
+First, create the config directory and set its owner. The volume is a bind mount, so the directory must exist, and it must belong to `1000:1000` because the container runs as that user. Do this before the first start, including on a host that already runs the rest of the stack.
+
+```bash
+sudo mkdir -p /mnt/docker/ersatztv && sudo chown 1000:1000 /mnt/docker/ersatztv
+```
+
+Then start it with:
+
+```bash
+docker compose -f media-stack-gluetun.yml up -d ersatztv
+```
+
+The UI is at `http://your-server-ip:8409`. It has no login unless you configure OIDC, so keep it on your local network and do not add it to NPM.
+
+To connect ErsatzTV to Jellyfin:
+
+1. In the Jellyfin dashboard, open **API Keys** and create a key for ErsatzTV.
+2. In ErsatzTV, open **Media Sources**, then **Jellyfin**.
+3. Set the server address to `http://jellyfin:8096` and enter the API key.
+4. Sync the movies and shows libraries.
+
+ErsatzTV streams the files through Jellyfin over HTTP, so it needs no media mount.
+
+Copy mode uses almost no CPU. In the FFmpeg profile, turn **Normalize Video** and **Normalize Audio** off. ErsatzTV then copies h264 or hevc video and aac, ac3, eac3 or mp3 audio instead of re-encoding it. With normalization on, each channel costs about one to two CPU cores while someone watches. This host has no GPU, so keep transcoded channels to two.
+
+The compose file sets no resource limit on the `ersatztv` service, so transcoded channels can use the CPU and memory they need. Expect about 2G of memory for a transcoded channel.
+
+An idle channel costs almost nothing by default, because a stream stops about a minute after the last viewer leaves unless the channel's idle behaviour is set to keep running.
+
+To show the channels in Jellyfin Live TV:
+
+1. In the Jellyfin dashboard, open **Live TV**, then **Tuner Devices**, and add an **M3U Tuner** with the URL `http://ersatztv:8409/iptv/channels.m3u`.
+2. Under **TV Guide Data Providers**, add **XMLTV** with the URL `http://ersatztv:8409/iptv/xmltv.xml`.
+3. Map the channels to the guide data.
+
+Use the container name in both URLs, because ErsatzTV copies the request host into every channel URL and Jellyfin streams from that host.
+
+Jellyfin 12 remuxes M3U tuners, so each viewer costs one Jellyfin ffmpeg process. The **HD Homerun** tuner type pointed at `http://ersatztv:8409` is the alternative.
+
+To check that ErsatzTV is healthy, run `docker exec ersatztv curl -sf http://localhost:8409/iptv/channels.m3u`, which prints the channel playlist and exits 0. The healthcheck uses this URL because `/api/version` needs an API key.
 
 ### Sonarr Setup
 
@@ -493,7 +544,7 @@ sudo ufw enable
 
 ### Access Denied / Permission Errors
 - Verify file ownership: `sudo chown -R 1000:1000 /mnt/docker`
-- Check `PUID` and `PGID` in `stack.env`. They apply to qBittorrent, Prowlarr, Radarr and Sonarr. Jellyfin and Jellyseerr run as `1000:1000` from the compose file.
+- Check `PUID` and `PGID` in `stack.env`. They apply to qBittorrent, Prowlarr, Radarr and Sonarr. Jellyfin, Jellyseerr and ErsatzTV run as `1000:1000` from the compose file.
 - Ensure UMASK is set correctly (002)
 
 ## 📝 Useful Commands
@@ -626,6 +677,7 @@ curl -I http://localhost:7878  # Radarr
 curl -I http://localhost:9696  # Prowlarr
 curl -I http://localhost:8080  # qBittorrent
 curl -I http://localhost:5055  # Jellyseerr
+curl -I http://localhost:8409  # ErsatzTV
 
 # Check VPN IP (should not be your real IP)
 docker exec qbittorrent wget -qO- https://api.ipify.org

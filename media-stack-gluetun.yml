@@ -28,6 +28,9 @@ volumes:
   qb_config:
     driver: local
     driver_opts: { type: none, o: bind, device: /mnt/docker/qbittorrent }
+  ersatztv_config:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /mnt/docker/ersatztv }
 
 services:
   # ----------------------------------------------------------
@@ -69,13 +72,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "1.00"
-        reservations:
-          memory: 256M
 
   # ----------------------------------------------------------
   # qBittorrent (all traffic bound to gluetun)
@@ -103,13 +99,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "2.00"
-        reservations:
-          memory: 512M
 
   # ----------------------------------------------------------
   # Prowlarr
@@ -132,13 +121,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
-        reservations:
-          memory: 128M
 
   # ----------------------------------------------------------
   # FlareSolverr (Cloudflare challenge solver for Prowlarr)
@@ -163,13 +145,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "1.00"
-        reservations:
-          memory: 256M
 
   # ----------------------------------------------------------
   # Radarr
@@ -192,13 +167,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.50"
-        reservations:
-          memory: 256M
 
   # ----------------------------------------------------------
   # Sonarr
@@ -221,13 +189,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.50"
-        reservations:
-          memory: 256M
 
   # ----------------------------------------------------------
   # Jellyseerr
@@ -253,13 +214,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.25"
-        reservations:
-          memory: 128M
 
   # ----------------------------------------------------------
   # Jellyfin
@@ -291,10 +245,37 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: "6.00"
-        reservations:
-          memory: 2G
+
+  # ----------------------------------------------------------
+  # ErsatzTV Legacy (24/7 channels for Jellyfin Live TV)
+  # The project is in maintenance as ErsatzTV Legacy, with no new features, while bug and security fixes continue.
+  # Pin the tag and back up /mnt/docker/ersatztv before changing it, because downgrades are unsupported.
+  # ----------------------------------------------------------
+  ersatztv:
+    image: ersatztv/legacy:v26.11.1
+    container_name: ersatztv
+    # No env_file on purpose. stack.env carries the VPN credentials and ErsatzTV does not need them.
+    environment:
+      # Edit this value by hand to match TZ in stack.env so guide times line up. This service has no env_file, so stack.env does not supply it.
+      - TZ=Etc/UTC
+      # The image creates /transcode at the filesystem root by default, which a non-root user cannot do,
+      # so transcode scratch goes under the config bind.
+      - ETV_TRANSCODE_FOLDER=/config/transcode
+    # /mnt/docker/ersatztv must be owned by 1000:1000.
+    user: "1000:1000"
+    volumes:
+      - ersatztv_config:/config
+      # No media mount. ErsatzTV streams the files through the Jellyfin API.
+    networks: [ media-net ]
+    ports:
+      # The UI has no login, so keep it LAN-only and off NPM.
+      - "8409:8409"
+    restart: unless-stopped
+    healthcheck:
+      # The probe hits the unauthenticated playlist URL because /api routes need an API key since v26.8.1.
+      # If OIDC is enabled, confirm /iptv/channels.m3u still answers without a login or the container goes unhealthy.
+      test: ["CMD", "curl", "-sf", "http://localhost:8409/iptv/channels.m3u"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
