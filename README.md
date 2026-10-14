@@ -389,9 +389,7 @@ Prowlarr applies the proxy only to indexers that carry its tag, so a proxy that 
 
 Prowlarr and FlareSolverr must leave through the same public IP, because the clearance cookies are only valid for the IP that solved the challenge. Both run on `media-net` outside the VPN, so they match today. If you ever put Prowlarr behind Gluetun, put FlareSolverr behind it too.
 
-FlareSolverr starts a Chromium instance for every request, so memory use climbs with the number of concurrent requests. It idles at roughly 50 to 75 MiB, and the compose file caps it at 1G of memory and one CPU.
-
-Memory limits across both compose files total about 9.5 GB on an 8 GB host. Limits are caps, so this only matters if services peak together. If the host starts swapping, lower another service's limit.
+FlareSolverr starts a Chromium instance for every request, so memory use climbs with the number of concurrent requests. It idles at roughly 50 to 75 MiB. The compose file sets no limit, so a burst of requests can use as much memory as the host has.
 
 The compose file does not publish port 8191, on purpose. The FlareSolverr project advises against exposing it to the internet, and only Prowlarr needs to reach it. To check that it is healthy, run `docker exec flaresolverr curl -sf http://localhost:8191/health`, which prints `{"status": "ok"}`.
 
@@ -428,7 +426,7 @@ ErsatzTV streams the files through Jellyfin over HTTP, so it needs no media moun
 
 Copy mode uses almost no CPU. In the FFmpeg profile, turn **Normalize Video** and **Normalize Audio** off. ErsatzTV then copies h264 or hevc video and aac, ac3, eac3 or mp3 audio instead of re-encoding it. With normalization on, each channel costs about one to two CPU cores while someone watches. This host has no GPU, so keep transcoded channels to two.
 
-The `1G` memory limit of the `ersatztv` service is part of the 9.5 GB total in the FlareSolverr section. Transcoded channels need that limit raised to `2G` and the CPU cap raised to `2.00` in the compose file. The default limits of `1G` and `1.00` fit copy mode.
+The compose file sets no resource limit on the `ersatztv` service, so transcoded channels can use the CPU and memory they need. Expect about 2G of memory for a transcoded channel.
 
 An idle channel costs almost nothing by default, because a stream stops about a minute after the last viewer leaves unless the channel's idle behaviour is set to keep running.
 
