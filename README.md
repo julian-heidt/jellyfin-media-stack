@@ -51,7 +51,7 @@ All services are containerized and can be accessed through your own custom domai
 ### Supporting Infrastructure
 
 - **Gluetun**: VPN gateway that routes qBittorrent traffic through ProtonVPN
-- **Docker Networks**: `media-net` for inter-service communication
+- **Docker Networks**: `media-net` for inter-service communication, and `proxy-net`, which NPM shares with the web app stacks
 
 ## 🏗️ Architecture
 
@@ -190,15 +190,21 @@ When `VPN_PORT_FORWARDING` is on, gluetun defaults `PORT_FORWARD_ONLY` to on for
 
 The current compose file sets `PORT_FORWARD_ONLY=off` on purpose until Julian reviews it. With that value gluetun can pick a server that has no forwarding.
 
-### Step 3: Create Docker Network
+### Step 3: Create Docker networks
 
-Swarm services cannot attach to a plain bridge network, so create `media-net` as an attachable overlay. Both Swarm services and docker compose containers can join it. Overlay networks need Swarm mode, so run `docker swarm init` first if this node is not in a swarm.
+Swarm services cannot attach to a plain bridge network, so this step creates two attachable overlay networks. Both Swarm services and docker compose containers can join an attachable overlay.
+
+- `media-net` is for the media stack and NPM.
+- `proxy-net` is shared by NPM and the web app stacks.
+
+Create both once on a swarm manager, before you deploy any stack. Overlay networks need Swarm mode, so run `docker swarm init` first if this node is not in a swarm.
 
 ```bash
-docker network create -d overlay --attachable media-net
+docker network inspect media-net >/dev/null 2>&1 || docker network create -d overlay --attachable media-net
+docker network inspect proxy-net >/dev/null 2>&1 || docker network create -d overlay --attachable proxy-net
 ```
 
-NPM also joins `drunk-app-stack_drunk-net`, which the drunk-app stack creates. That network must already exist or NPM will not start. The compose file for the media stack attaches to the same attachable overlay `media-net`.
+NPM declares both networks as external, so its deploy fails if either one is missing. The compose file for the media stack attaches to the same `media-net`.
 
 ### Step 4: Deploy Nginx Proxy Manager
 
