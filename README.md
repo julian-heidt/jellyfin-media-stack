@@ -196,9 +196,10 @@ Swarm services cannot attach to a plain bridge network, so create `media-net` as
 
 ```bash
 docker network create -d overlay --attachable media-net
+docker network create -d overlay --attachable proxy-net
 ```
 
-NPM also joins `drunk-app-stack_drunk-net`, which the drunk-app stack creates. That network must already exist or NPM will not start. The compose file for the media stack attaches to the same attachable overlay `media-net`.
+NPM also joins `proxy-net`, an external attachable overlay network shared with the web app stacks. It must exist before you deploy NPM, or the deploy fails. The compose file for the media stack attaches to the same attachable overlay `media-net`.
 
 ### Step 4: Deploy Nginx Proxy Manager
 

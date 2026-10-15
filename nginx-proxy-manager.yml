@@ -28,10 +28,10 @@ services:
         delay: 10s
     networks:
       - media-net
-      - drunk-app-stack_drunk-net   # connect to your webapp overlay network
+      - proxy-net   # shared overlay network for the web apps NPM proxies
 
 networks:
   media-net:
     external: true
-  drunk-app-stack_drunk-net:
+  proxy-net:
     external: true
