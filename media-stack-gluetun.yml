@@ -228,7 +228,8 @@ services:
     container_name: jellyfin
     env_file:
       - stack.env
-    user: "1000:1000"
+    # No user: line. Jellyfin runs as root, the image default, because 1000:1000 cannot write
+    # a config directory that another uid owns, and SQLite then reports a read-only database.
     volumes:
       - jellyfin_config:/config
       - jellyfin_cache:/cache
