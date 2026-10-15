@@ -102,9 +102,9 @@ sudo mkdir -p /mnt/docker/{jellyfin/{config,cache},sonarr,radarr,prowlarr,qbitto
 sudo chown 1000:1000 /mnt/docker/ersatztv
 ```
 
-Jellyfin, Jellyseerr and ErsatzTV run as `1000:1000`, set by the `user:` line in the compose file. qBittorrent, Prowlarr, Radarr and Sonarr use `PUID` and `PGID` from `stack.env`, which `stack.env.example` sets to 1000.
+Jellyseerr and ErsatzTV run as `1000:1000`, set by the `user:` line in the compose file. Jellyfin has no `user:` line and runs as root, the image default. qBittorrent, Prowlarr, Radarr and Sonarr use `PUID` and `PGID` from `stack.env`, which `stack.env.example` sets to 1000.
 
-The commands below assume all of them stay at 1000. If you change `PUID` and `PGID`, change all three `user:` lines in the compose file to the same values and use those values in the `chown` command:
+The commands below assume all of them stay at 1000. If you change `PUID` and `PGID`, change the `user:` lines in the compose file to the same values and use those values in the `chown` command:
 
 ```bash
 sudo chown -R 1000:1000 /mnt/docker
@@ -509,7 +509,7 @@ sudo ufw enable
 
 ### Jellyfin Can't Find Media
 - Verify directory permissions: `ls -la /mnt/docker/media`
-- Jellyfin runs as user `1000:1000` from the compose file and ignores `PUID` and `PGID`, so that user must be able to read the files.
+- Jellyfin runs as root and ignores `PUID` and `PGID`. On an NFS share that squashes root, the squashed user must be able to read the files.
 - Verify the media files are in the correct directories
 - Scan libraries in Jellyfin dashboard
 
@@ -544,7 +544,7 @@ sudo ufw enable
 
 ### Access Denied / Permission Errors
 - Verify file ownership: `sudo chown -R 1000:1000 /mnt/docker`
-- Check `PUID` and `PGID` in `stack.env`. They apply to qBittorrent, Prowlarr, Radarr and Sonarr. Jellyfin, Jellyseerr and ErsatzTV run as `1000:1000` from the compose file.
+- Check `PUID` and `PGID` in `stack.env`. They apply to qBittorrent, Prowlarr, Radarr and Sonarr. Jellyseerr and ErsatzTV run as `1000:1000` from the compose file, and Jellyfin runs as root.
 - Ensure UMASK is set correctly (002)
 
 ## 📝 Useful Commands
