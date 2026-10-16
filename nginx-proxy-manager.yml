@@ -9,14 +9,21 @@ services:
       - /mnt/docker/nginxproxymanager/data:/data
       - /mnt/docker/nginxproxymanager/letsencrypt:/etc/letsencrypt
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:81"]
+      # The image ships this script. It asks the admin API on port 81 for its status with curl and jq.
+      test: ["CMD", "/usr/bin/check-health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
+      # Probe every 5s during the start period, so a restart ends when NPM first answers instead of after the first 30s interval.
+      start_interval: 5s
     deploy:
       mode: replicated
       replicas: 1
+      placement:
+        constraints:
+          # The bind mounts above exist only on this node. Without the constraint a fresh deploy can land on a node without them and loop on "bind source path does not exist".
+          - node.hostname == docker-manager-01
       restart_policy:
         condition: any
         delay: 10s
@@ -26,6 +33,15 @@ services:
         order: stop-first
         parallelism: 1
         delay: 10s
+        # A task that never turns healthy fails the update regardless of monitor. monitor is how long after the new task turns healthy a crash still triggers a rollback.
+        failure_action: rollback
+        monitor: 1m
+      rollback_config:
+        order: stop-first
+        parallelism: 1
+        delay: 10s
+        failure_action: pause
+        monitor: 1m
     networks:
       - media-net
       - proxy-net   # shared overlay network for the web apps NPM proxies
