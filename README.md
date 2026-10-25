@@ -10,6 +10,7 @@ A complete, production-ready Docker Compose setup for a self-hosted media server
 - [Prerequisites](#prerequisites)
 - [Directory Structure](#directory-structure)
 - [Installation](#installation)
+- [Deployment](#deployment)
 - [Nginx Proxy Manager Setup](#nginx-proxy-manager-setup)
 - [Domain Configuration](#domain-configuration)
 - [Service Configuration](#service-configuration)
@@ -220,6 +221,10 @@ Wait for it to start (about 30 seconds), then access the admin interface at `htt
 
 NPM 2.13 and later show a setup wizard on first start, where you create the admin account. There is no default login.
 
+Portainer can deploy this file from Git instead and redeploy it when `main` changes. See [Deployment](#deployment).
+
+The stack file pins NPM to `docker-manager-01`, the node that holds `/mnt/docker/nginxproxymanager/`. Change the `node.hostname` constraint if that node has another name.
+
 ### Step 5: Deploy Media Compose
 
 ```bash
@@ -237,6 +242,62 @@ You should see all containers running. Check logs if any container is restarting
 ```bash
 docker logs <container_name>
 ```
+
+## Deployment
+
+Portainer deploys the NPM stack from this repository and polls it for changes (GitOps). Nothing is built here. The stack runs the upstream `jc21/nginx-proxy-manager` image from Docker Hub, pinned to a release tag.
+
+### Portainer stack settings
+
+| Setting | Value |
+|---|---|
+| Stack name | `npm` |
+| Build method | Git Repository |
+| Repository URL | `https://github.com/julian-heidt/jellyfin-media-stack` |
+| Repository reference | `refs/heads/main` |
+| Compose path | `nginx-proxy-manager.yml` |
+| Authentication | off (public repository) |
+| GitOps updates | on |
+| Mechanism | Polling |
+| Fetch interval | `5m` |
+| Re-pull image | on |
+| Force redeployment | off |
+| Prune services | off (GitOps redeploys prune anyway; the file has one service) |
+| Environment variables | none |
+| Registry | Docker Hub, anonymous. No registry credential is needed for this image. |
+
+The Portainer form may show a URL field or a picker of preconfigured Git sources depending on version. The values are what matter, not the labels.
+
+Force redeployment stays off for this stack because the image tag is pinned. With it on, Portainer redeploys on every poll even when the commit has not changed. If a version bump fails its health check and Swarm rolls back, that setting would re-apply the broken tag every five minutes and take the proxy down each time. With it off, Portainer redeploys whenever a new commit lands on `main`, whatever file it touches, and Swarm leaves NPM running when the rendered service is unchanged.
+
+Once Portainer owns the stack, change it through Git, not with `docker stack deploy`. A hand deploy drifts from what Portainer has stored, and Portainer overwrites it on the next change. Where this README says to run `docker stack deploy -c nginx-proxy-manager.yml npm`, use the stack's "Pull and redeploy" button in Portainer instead.
+
+### Moving the existing stack into Portainer
+
+A stack created with `docker stack deploy` shows up in Portainer with limited control and cannot be converted to a Git stack in place. To hand it over:
+
+Do this after this change is on `main`, because Portainer deploys the file that `main` holds.
+
+1. In Portainer, confirm the `media-net` and `proxy-net` overlay networks exist (Step 3).
+2. On a manager, check which node runs NPM today with `docker service ps npm_npm` and confirm `/mnt/docker/nginxproxymanager/data` exists there. The stack file pins the service to `docker-manager-01`; if the task runs elsewhere, change the `node.hostname` constraint to match before deploying.
+3. Check that the image can run its own health check: `docker run --rm --entrypoint sh jc21/nginx-proxy-manager:2.16.0 -c 'command -v curl && command -v jq && test -x /usr/bin/check-health && echo ok'` must print `ok`. A fresh stack has nothing to roll back to, so a broken health check would keep the proxy down. If the running task already uses 2.16.0, also run `docker exec $(docker ps -q -f name=npm_npm) /usr/bin/check-health` on the node that runs it. It must print `OK`.
+4. In Portainer, open Add stack, name it `npm` and fill in the settings above, but do not click Deploy yet. Portainer refuses to create a Git stack while a Swarm service from the old stack still exists, so the removal in step 5 must come before Deploy. If the form rejects the name while the old stack exists, fill it in after step 5 instead.
+5. Remove the stack on a manager: `docker stack rm --detach=false npm`. The bind mounts under `/mnt/docker/nginxproxymanager/` keep the database and certificates.
+6. Click "Deploy the stack" in Portainer.
+7. Check that `docker service ps npm_npm` shows one Running task and that the admin UI answers on port 81.
+
+The proxy is down from the removal in step 5 to the check in step 7, about a minute plus image pull time.
+
+### Image updates
+
+Renovate opens a pull request when a new `jc21/nginx-proxy-manager` release appears (see `renovate.json`). Read the release notes, merge, and Portainer picks the change up on its next poll. Each update stops the proxy for about 30 seconds plus pull time because of the stop-first order.
+
+If the new version never turns healthy, Swarm rolls the service back to the previous image, but Git still names the new tag. Expect up to about three minutes of proxy downtime in that case. Swarm waits for three failed health checks 30 seconds apart after the 30-second start period, then starts the old image, which needs its own health check. Revert the pull request to bring the two back in line, and do it before merging anything else to `main`, because any new commit makes Portainer re-apply the tag in the file.
+
+### GitHub side
+
+- Install the Mend Renovate GitHub App on the `julian-heidt/jellyfin-media-stack` repository (https://github.com/apps/renovate). The repository is public, so no secrets or Actions credentials are needed. Because `renovate.json` is already on `main`, Renovate treats the repository as onboarded and opens no "Configure Renovate" PR.
+- No images are built or published, so there is no GHCR package and no Portainer registry credential for this stack.
 
 ## 🌐 Nginx Proxy Manager Setup
 
