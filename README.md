@@ -103,7 +103,7 @@ sudo mkdir -p /mnt/docker/{jellyfin/{config,cache},sonarr,radarr,prowlarr,qbitto
 sudo chown 1000:1000 /mnt/docker/ersatztv
 ```
 
-Jellyseerr and ErsatzTV run as `1000:1000`, set by the `user:` line in the compose file. Jellyfin has no `user:` line and runs as root, the image default. qBittorrent, Prowlarr, Radarr and Sonarr use `PUID` and `PGID` from `stack.env`, which `stack.env.example` sets to 1000.
+Seerr runs as uid 1000 inside its image, with no `user:` line. ErsatzTV runs as `1000:1000` from its `user:` line. Jellyfin has no `user:` line and runs as root, the image default. qBittorrent, Prowlarr, Radarr and Sonarr use `PUID` and `PGID` from `stack.env`, which `stack.env.example` sets to 1000.
 
 The commands below assume all of them stay at 1000. If you change `PUID` and `PGID`, change the `user:` lines in the compose file to the same values and use those values in the `chown` command:
 
@@ -611,7 +611,7 @@ sudo ufw enable
 
 ### Access Denied / Permission Errors
 - Verify file ownership: `sudo chown -R 1000:1000 /mnt/docker`
-- Check `PUID` and `PGID` in `stack.env`. They apply to qBittorrent, Prowlarr, Radarr and Sonarr. Jellyseerr and ErsatzTV run as `1000:1000` from the compose file, and Jellyfin runs as root.
+- Check `PUID` and `PGID` in `stack.env`. They apply to qBittorrent, Prowlarr, Radarr and Sonarr. Seerr runs as uid 1000 inside its image, ErsatzTV runs as `1000:1000` from the compose file, and Jellyfin runs as root.
 - Ensure UMASK is set correctly (002)
 
 ## 📝 Useful Commands
@@ -664,11 +664,9 @@ Back up the Jellyfin configuration before you start the new image (see Backup Co
 
 The compose file pins `jellyfin/jellyfin:12.2`, the same image `latest` resolved to when this pin was added. An existing 10.11 install migrates the first time you start that image.
 
-#### Jellyseerr is archived
+#### Seerr replaced Jellyseerr
 
-The `fallenbagel/jellyseerr` image is archived on Docker Hub. The compose file pins 2.7.3, the newest Jellyseerr version, and this repo does not use Seerr yet.
-
-The successor is Seerr (`ghcr.io/seerr-team/seerr`). It migrates the Jellyseerr database automatically on first start, and that migration is one way. It runs as uid 1000, needs `init: true`, and must not set a `user:` directive.
+The service runs `ghcr.io/seerr-team/seerr`, the successor to the archived `fallenbagel/jellyseerr` image. It keeps the `jellyseerr` service and container name and the `jellyseerr_config` volume, so the NPM proxy host and the data stay as they were. Seerr migrated the Jellyseerr database on first start, and that migration is one way.
 
 ### Network Management
 
