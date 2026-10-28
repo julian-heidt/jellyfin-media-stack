@@ -186,13 +186,13 @@ services:
   # Jellyseerr
   # ----------------------------------------------------------
   jellyseerr:
-    image: fallenbagel/jellyseerr:latest
+    image: ghcr.io/seerr-team/seerr:latest
+    init: true
     container_name: jellyseerr
     env_file:
       - stack.env
     environment:
       - LOG_LEVEL=info
-    user: "1000:1000"
     volumes:
       - jellyseerr_config:/app/config
     networks: [ media-net ]
@@ -200,8 +200,7 @@ services:
       - "5055:5055"
     restart: unless-stopped
     healthcheck:
-      # The image has wget but not curl.
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5055/api/v1/status"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5055/api/v1/settings/public"]
       interval: 30s
       timeout: 10s
       retries: 3
