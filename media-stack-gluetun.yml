@@ -50,14 +50,6 @@ services:
       # --- ProtonVPN OpenVPN Configuration ---
       - VPN_SERVICE_PROVIDER=protonvpn
       - VPN_TYPE=openvpn
-      # OPENVPN_USER and OPENVPN_PASSWORD are loaded from stack.env
-      # PORT_FORWARD_ONLY=off overrides gluetun's Proton default and can select servers without forwarding.
-      # The README key variables section explains the forwarding setup.
-      - PORT_FORWARD_ONLY=off
-      - VPN_PORT_FORWARDING=on
-      - VPN_PORT_FORWARDING_PROVIDER=protonvpn
-      # FIREWALL_VPN_INPUT_PORTS and SERVER_HOSTNAMES come from stack.env through env_file.
-      # An interpolated entry here resolves empty under plain docker compose and overrides the file.
     volumes:
       - /lib/modules:/lib/modules:ro
       - qb_config:/gluetun
