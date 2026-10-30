@@ -562,14 +562,21 @@ The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, s
 
 `qbittorrent-exporter` runs `ghcr.io/martabal/qbittorrent-exporter` at `v2.0.4`. qBittorrent shares Gluetun's network and has no address of its own, so the exporter joins `media-net` and reaches the WebUI at `http://gluetun:8080`, the same address Sonarr and Radarr use. Gluetun and qBittorrent are unchanged.
 
-The exporter logs in with the qBittorrent WebUI username and password. It reads `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD` from `stack.env` through `env_file`, so it also receives every other value in that file. qBittorrent 5.2.0 and later names its session cookie `QBT_SID_<port>`, so the compose file sets `QBITTORRENT_COOKIE_NAME=QBT_SID_8080`. Change it to `SID` if you run an older qBittorrent. The exporter has a healthcheck on its `/healthz` endpoint, which does not query qBittorrent, and a 128 MiB memory limit.
+The exporter logs in with the qBittorrent WebUI username and password. It reads `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD` from `qbittorrent-exporter.env`, a separate file beside the compose file, so it never receives the VPN credentials in `stack.env`. Git ignores `qbittorrent-exporter.env`, and `qbittorrent-exporter.env.example` shows the format.
+
+qBittorrent 5.2.0 and later names its session cookie `QBT_SID_<port>`, so the compose file sets `QBITTORRENT_COOKIE_NAME=QBT_SID_8080`. Change it to `SID` if you run an older qBittorrent. qBittorrent 5.2.0 and later also supports an API key. The exporter reads it from `QBITTORRENT_API_KEY` and skips the username and password login when that is set, so you could put the key in `qbittorrent-exporter.env` instead of the two login values. The compose file does not use it.
+
+The exporter has a healthcheck on its `/healthz` endpoint, which does not query qBittorrent, and a 128 MiB memory limit.
 
 ### Before you start the stack
 
-Add these two names to `stack.env`. `stack.env.example` lists them:
+Create `qbittorrent-exporter.env` beside `media-stack-gluetun.yml` on the host, and put the qBittorrent WebUI login in it. Copy the example file and fill in the two values:
 
-- `QBITTORRENT_USERNAME`
-- `QBITTORRENT_PASSWORD`
+```bash
+cp qbittorrent-exporter.env.example qbittorrent-exporter.env
+```
+
+The file holds `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD`. `stack.env` needs no change. The compose file requires the new file, so `docker compose up` fails with an env file error until it exists.
 
 `monitoring` is an attachable overlay network that the monitoring stack owns. The compose file declares it as external, so `docker compose up` fails until it exists. If the monitoring stack has not created it yet, create it once on a swarm manager:
 

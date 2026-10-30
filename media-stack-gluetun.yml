@@ -312,16 +312,17 @@ services:
   # ----------------------------------------------------------
   # qBittorrent exporter
   # qBittorrent shares gluetun's network, so the exporter reaches its WebUI through gluetun
-  # on media-net. It reads QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD from stack.env,
-  # which also hands it the rest of that file. QBT_SID_8080 is the session cookie name for
-  # qBittorrent 5.2.0 and later. Use SID for older versions. No ports are published. Alloy
-  # scrapes it on the monitoring network at qbittorrent-exporter:8090.
+  # on media-net. It reads QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD from
+  # qbittorrent-exporter.env, a separate gitignored file, so it never receives stack.env.
+  # QBT_SID_8080 is the session cookie name for qBittorrent 5.2.0 and later. Use SID for
+  # older versions. No ports are published. Alloy scrapes it on the monitoring network at
+  # qbittorrent-exporter:8090.
   # ----------------------------------------------------------
   qbittorrent-exporter:
     image: ghcr.io/martabal/qbittorrent-exporter:v2.0.4
     container_name: qbittorrent-exporter
     env_file:
-      - stack.env
+      - qbittorrent-exporter.env
     environment:
       - QBITTORRENT_BASE_URL=http://gluetun:8080
       - QBITTORRENT_COOKIE_NAME=QBT_SID_8080
