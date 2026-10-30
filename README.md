@@ -232,7 +232,7 @@ The stack file pins NPM to `docker-manager-01`, the node that holds `/mnt/docker
 docker compose -f media-stack-gluetun.yml up -d
 ```
 
-The file also attaches the exporters to an external `monitoring` network, so that network must exist first. See [Monitoring](#monitoring).
+The file also attaches the exporters to an external `monitoring` network, so that network must exist first. It also loads `qbittorrent-exporter.env` for the qBittorrent exporter, so create that file before you run `up -d` for the whole stack or `config`. Compose reads the `env_file` of every service a command acts on. Commands that name other services, and `pull`, `down` and `ps`, ran without it on Compose v5.0.2, but another version may differ, so create the file before any compose command. See [Monitoring](#monitoring).
 
 ### Step 6: Verify All Services Are Running
 
@@ -576,7 +576,7 @@ Create `qbittorrent-exporter.env` beside `media-stack-gluetun.yml` on the host, 
 cp qbittorrent-exporter.env.example qbittorrent-exporter.env
 ```
 
-The file holds `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD`. `stack.env` needs no change. The compose file requires the new file, so `docker compose up` fails with an env file error until it exists.
+The file holds `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD`. `stack.env` needs no change. The compose file requires the new file, so `docker compose up -d` for the whole stack fails with an env file error until it exists.
 
 `monitoring` is an attachable overlay network that the monitoring stack owns. The compose file declares it as external, so `docker compose up` fails until it exists. If the monitoring stack has not created it yet, create it once on a swarm manager:
 
