@@ -543,7 +543,7 @@ To check that ErsatzTV is healthy, run `docker exec ersatztv curl -sf http://loc
 
 ## Monitoring
 
-The stack runs one Exportarr container per app, for the shared Prometheus and Alloy collector to scrape. Each exporter listens on port 9707 and serves its metrics at `/metrics`. None of them publishes a port, so only containers on the `monitoring` network can reach them.
+The stack runs one Exportarr container per app, for the shared Prometheus and Alloy collector to scrape. Each exporter listens on port 9707 and serves its metrics at `/metrics`. No exporter publishes a port, so only containers on `media-net` or `monitoring` can reach them.
 
 | Exporter | Monitors | Alias on `monitoring` | Port |
 |---|---|---|---|
