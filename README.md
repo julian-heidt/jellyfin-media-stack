@@ -232,7 +232,7 @@ The stack file pins NPM to `docker-manager-01`, the node that holds `/mnt/docker
 docker compose -f media-stack-gluetun.yml up -d
 ```
 
-The file also attaches the exporters to an external `monitoring` network, so that network must exist first. See [Monitoring](#monitoring).
+The file also attaches the exporters to an external `monitoring` network, so that network must exist first. It also loads `qbittorrent-exporter.env` for the qBittorrent exporter, so create that file before you run `up -d` for the whole stack or `config`. Compose reads the `env_file` of every service a command acts on. Commands that name other services, and `pull`, `down` and `ps`, ran without it on Compose v5.0.2, but another version may differ, so create the file before any compose command. See [Monitoring](#monitoring).
 
 ### Step 6: Verify All Services Are Running
 
@@ -543,21 +543,40 @@ To check that ErsatzTV is healthy, run `docker exec ersatztv curl -sf http://loc
 
 ## Monitoring
 
-The stack runs one Exportarr container per app, for the shared Prometheus and Alloy collector to scrape. Each exporter listens on port 9707 and serves its metrics at `/metrics`. No exporter publishes a port, so only containers on `media-net` or `monitoring` can reach them.
+The stack runs one Exportarr container per *arr app and one qBittorrent exporter, for the shared Prometheus and Alloy collector to scrape. Every exporter serves its metrics at `/metrics`. No exporter publishes a port, so only containers on `media-net` or `monitoring` can reach them.
 
 | Exporter | Monitors | Alias on `monitoring` | Port |
 |---|---|---|---|
 | `exportarr-sonarr` | Sonarr | `exportarr-sonarr` | 9707 |
 | `exportarr-radarr` | Radarr | `exportarr-radarr` | 9707 |
 | `exportarr-prowlarr` | Prowlarr | `exportarr-prowlarr` | 9707 |
+| `qbittorrent-exporter` | qBittorrent | `qbittorrent-exporter` | 8090 |
 
-Each exporter also joins `media-net`, where it reaches its app by name, for example `http://sonarr:8989`.
+Each Exportarr container also joins `media-net`, where it reaches its app by name, for example `http://sonarr:8989`.
 
 The exporters read each app's API key from the app's `config.xml`. Each one mounts the app's existing config volume read-only at `/config` and sets `CONFIG=/config/config.xml`, so no API key lives in the compose file or in `stack.env`. If you regenerate an app's API key, restart its exporter so it reads the new one.
 
 The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, so the exporters have no healthcheck. Each has a 128 MiB memory limit.
 
+### qBittorrent exporter
+
+`qbittorrent-exporter` runs `ghcr.io/martabal/qbittorrent-exporter` at `v2.0.4`. qBittorrent shares Gluetun's network and has no address of its own, so the exporter joins `media-net` and reaches the WebUI at `http://gluetun:8080`, the same address Sonarr and Radarr use. Gluetun and qBittorrent are unchanged.
+
+The exporter logs in with the qBittorrent WebUI username and password. It reads `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD` from `qbittorrent-exporter.env`, a separate file beside the compose file, so it never receives the VPN credentials in `stack.env`. Git ignores `qbittorrent-exporter.env`, and `qbittorrent-exporter.env.example` shows the format.
+
+qBittorrent 5.2.0 and later names its session cookie `QBT_SID_<port>`, so the compose file sets `QBITTORRENT_COOKIE_NAME=QBT_SID_8080`. Change it to `SID` if you run an older qBittorrent. qBittorrent 5.2.0 and later also supports an API key. The exporter reads it from `QBITTORRENT_API_KEY` and skips the username and password login when that is set, so you could put the key in `qbittorrent-exporter.env` instead of the two login values. The compose file does not use it.
+
+The exporter has a healthcheck on its `/healthz` endpoint, which does not query qBittorrent, and a 128 MiB memory limit.
+
 ### Before you start the stack
+
+Create `qbittorrent-exporter.env` beside `media-stack-gluetun.yml` on the host, and put the qBittorrent WebUI login in it. Copy the example file and fill in the two values:
+
+```bash
+cp qbittorrent-exporter.env.example qbittorrent-exporter.env
+```
+
+The file holds `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD`. `stack.env` needs no change. The compose file requires the new file, so `docker compose up -d` for the whole stack fails with an env file error until it exists.
 
 `monitoring` is an attachable overlay network that the monitoring stack owns. The compose file declares it as external, so `docker compose up` fails until it exists. If the monitoring stack has not created it yet, create it once on a swarm manager:
 
@@ -570,10 +589,12 @@ docker network inspect monitoring >/dev/null 2>&1 || docker network create -d ov
 ```bash
 docker compose -f media-stack-gluetun.yml ps
 docker logs exportarr-sonarr
+docker logs qbittorrent-exporter
 docker exec sonarr curl -sf http://exportarr-sonarr:9707/metrics | head
+docker exec sonarr curl -sf http://qbittorrent-exporter:8090/metrics | head
 ```
 
-`docker compose ps` should list all three exporters as running, and `docker logs` should end with a `Starting HTTP Server` line for port 9707. An exporter that cannot find an API key in `config.xml` exits with `ApiKey is required to not be empty` instead. The last command runs from the Sonarr container, which is on `media-net` and has curl, and prints Prometheus metrics. Use the same pattern with `radarr` and `prowlarr` for the other two.
+`docker compose ps` should list all four exporters as running, and the qBittorrent exporter should report `healthy`. `docker logs exportarr-sonarr` should end with a `Starting HTTP Server` line for port 9707. An Exportarr container that cannot find an API key in `config.xml` exits with `ApiKey is required to not be empty` instead. `docker logs qbittorrent-exporter` should end with `Starting the exporter`. A wrong username or password makes the exporter exit with `Authentication Error, check your qBittorrent username / password`. The `curl` commands run from the Sonarr container, which is on `media-net` and has curl, and print Prometheus metrics. Use the same pattern with `radarr` and `prowlarr` for the other two Exportarr containers.
 
 ## 🔒 Security Considerations
 

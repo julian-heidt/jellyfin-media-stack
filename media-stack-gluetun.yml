@@ -308,3 +308,34 @@ services:
         aliases: [ exportarr-prowlarr ]
     mem_limit: 128m
     restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # qBittorrent exporter
+  # qBittorrent shares gluetun's network, so the exporter reaches its WebUI through gluetun
+  # on media-net. It reads QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD from
+  # qbittorrent-exporter.env, a separate gitignored file, so it never receives stack.env.
+  # QBT_SID_8080 is the session cookie name for qBittorrent 5.2.0 and later. Use SID for
+  # older versions. No ports are published. Alloy scrapes it on the monitoring network at
+  # qbittorrent-exporter:8090.
+  # ----------------------------------------------------------
+  qbittorrent-exporter:
+    image: ghcr.io/martabal/qbittorrent-exporter:v2.0.4
+    container_name: qbittorrent-exporter
+    env_file:
+      - qbittorrent-exporter.env
+    environment:
+      - QBITTORRENT_BASE_URL=http://gluetun:8080
+      - QBITTORRENT_COOKIE_NAME=QBT_SID_8080
+      - EXPORTER_PORT=8090
+    networks:
+      media-net: {}
+      monitoring:
+        aliases: [ qbittorrent-exporter ]
+    mem_limit: 128m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8090/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
