@@ -2,6 +2,9 @@ networks:
   media-net:
     name: media-net
     external: true   # create once on a Swarm manager with: docker network create -d overlay --attachable media-net
+  monitoring:
+    name: monitoring
+    external: true   # attachable overlay owned by the Prometheus and Alloy stack. It must exist before docker compose up
 
 volumes:
   media_dir:
@@ -237,3 +240,71 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # ----------------------------------------------------------
+  # Exportarr for Sonarr, Radarr and Prowlarr
+  # Prometheus exporters for the shared monitoring stack. Each one reads its app's API key
+  # from config.xml on the app's own config volume, mounted read-only, so no key is copied
+  # into this file or stack.env. No ports are published. Alloy scrapes each exporter on
+  # the monitoring network at its alias on port 9707. The image has no shell or curl, so
+  # there is no healthcheck.
+  # ----------------------------------------------------------
+  exportarr-sonarr:
+    image: ghcr.io/onedr0p/exportarr:v2.3.0
+    container_name: exportarr-sonarr
+    command: ["sonarr"]
+    environment:
+      - PORT=9707
+      - URL=http://sonarr:8989
+      - CONFIG=/config/config.xml
+      - LOG_LEVEL=info
+    volumes:
+      - sonarr_config:/config:ro
+    networks:
+      media-net: {}
+      monitoring:
+        aliases: [ exportarr-sonarr ]
+    mem_limit: 128m
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Exportarr for Radarr
+  # ----------------------------------------------------------
+  exportarr-radarr:
+    image: ghcr.io/onedr0p/exportarr:v2.3.0
+    container_name: exportarr-radarr
+    command: ["radarr"]
+    environment:
+      - PORT=9707
+      - URL=http://radarr:7878
+      - CONFIG=/config/config.xml
+      - LOG_LEVEL=info
+    volumes:
+      - radarr_config:/config:ro
+    networks:
+      media-net: {}
+      monitoring:
+        aliases: [ exportarr-radarr ]
+    mem_limit: 128m
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Exportarr for Prowlarr
+  # ----------------------------------------------------------
+  exportarr-prowlarr:
+    image: ghcr.io/onedr0p/exportarr:v2.3.0
+    container_name: exportarr-prowlarr
+    command: ["prowlarr"]
+    environment:
+      - PORT=9707
+      - URL=http://prowlarr:9696
+      - CONFIG=/config/config.xml
+      - LOG_LEVEL=info
+    volumes:
+      - prowlarr_config:/config:ro
+    networks:
+      media-net: {}
+      monitoring:
+        aliases: [ exportarr-prowlarr ]
+    mem_limit: 128m
+    restart: unless-stopped

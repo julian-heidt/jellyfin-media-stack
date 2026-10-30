@@ -14,6 +14,7 @@ A complete, production-ready Docker Compose setup for a self-hosted media server
 - [Nginx Proxy Manager Setup](#nginx-proxy-manager-setup)
 - [Domain Configuration](#domain-configuration)
 - [Service Configuration](#service-configuration)
+- [Monitoring](#monitoring)
 - [Security Considerations](#security-considerations)
 - [Troubleshooting](#troubleshooting)
 - [Useful Commands](#useful-commands)
@@ -230,6 +231,8 @@ The stack file pins NPM to `docker-manager-01`, the node that holds `/mnt/docker
 ```bash
 docker compose -f media-stack-gluetun.yml up -d
 ```
+
+The file also attaches the exporters to an external `monitoring` network, so that network must exist first. See [Monitoring](#monitoring).
 
 ### Step 6: Verify All Services Are Running
 
@@ -537,6 +540,40 @@ To check that ErsatzTV is healthy, run `docker exec ersatztv curl -sf http://loc
    - Use your Jellyfin admin credentials
 3. Connect to Sonarr and Radarr with their API keys
 4. Configure request settings and permissions
+
+## Monitoring
+
+The stack runs one Exportarr container per app, for the shared Prometheus and Alloy collector to scrape. Each exporter listens on port 9707 and serves its metrics at `/metrics`. None of them publishes a port, so only containers on the `monitoring` network can reach them.
+
+| Exporter | Monitors | Alias on `monitoring` | Port |
+|---|---|---|---|
+| `exportarr-sonarr` | Sonarr | `exportarr-sonarr` | 9707 |
+| `exportarr-radarr` | Radarr | `exportarr-radarr` | 9707 |
+| `exportarr-prowlarr` | Prowlarr | `exportarr-prowlarr` | 9707 |
+
+Each exporter also joins `media-net`, where it reaches its app by name, for example `http://sonarr:8989`.
+
+The exporters read each app's API key from the app's `config.xml`. Each one mounts the app's existing config volume read-only at `/config` and sets `CONFIG=/config/config.xml`, so no API key lives in the compose file or in `stack.env`. If you regenerate an app's API key, restart its exporter so it reads the new one.
+
+The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, so the exporters have no healthcheck. Each has a 128 MiB memory limit.
+
+### Before you start the stack
+
+`monitoring` is an attachable overlay network that the monitoring stack owns. The compose file declares it as external, so `docker compose up` fails until it exists. If the monitoring stack has not created it yet, create it once on a swarm manager:
+
+```bash
+docker network inspect monitoring >/dev/null 2>&1 || docker network create -d overlay --attachable monitoring
+```
+
+### Verify the exporters
+
+```bash
+docker compose -f media-stack-gluetun.yml ps
+docker logs exportarr-sonarr
+docker exec sonarr curl -sf http://exportarr-sonarr:9707/metrics | head
+```
+
+`docker compose ps` should list all three exporters as running, and `docker logs` should end with a `Starting HTTP Server` line for port 9707. An exporter that cannot find an API key in `config.xml` exits with `ApiKey is required to not be empty` instead. The last command runs from the Sonarr container, which is on `media-net` and has curl, and prints Prometheus metrics. Use the same pattern with `radarr` and `prowlarr` for the other two.
 
 ## 🔒 Security Considerations
 
