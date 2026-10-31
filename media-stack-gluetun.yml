@@ -4,7 +4,7 @@ networks:
     external: true   # create once on a Swarm manager with: docker network create -d overlay --attachable media-net
   monitoring:
     name: monitoring
-    external: true   # attachable overlay owned by the Prometheus and Alloy stack. It must exist before docker compose up
+    external: true   # create once by hand on a Swarm manager with: docker network create -d overlay --attachable monitoring
 
 volumes:
   media_dir:
@@ -244,8 +244,8 @@ services:
   # ----------------------------------------------------------
   # Exportarr for Sonarr, Radarr and Prowlarr
   # Prometheus exporters for the shared monitoring stack. Each one reads its app's API key
-  # from config.xml on the app's own config volume, mounted read-only, so no key is copied
-  # into this file or stack.env. No ports are published. Alloy scrapes each exporter on
+  # from config.xml on the app's own config volume, mounted read-only, so no *arr API key is
+  # copied into this file or stack.env. No ports are published. Alloy scrapes each exporter on
   # the monitoring network at its alias on port 9707. The image has no shell or curl, so
   # there is no healthcheck.
   # ----------------------------------------------------------
@@ -308,3 +308,31 @@ services:
         aliases: [ exportarr-prowlarr ]
     mem_limit: 128m
     restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # qBittorrent exporter
+  # qBittorrent shares gluetun's network, so the exporter reaches its WebUI through gluetun
+  # on media-net. It authenticates with QBITTORRENT_API_KEY from stack.env, so it does no
+  # username and password login. No ports are published. Alloy scrapes it on the monitoring
+  # network at qbittorrent-exporter:8090.
+  # ----------------------------------------------------------
+  qbittorrent-exporter:
+    image: ghcr.io/martabal/qbittorrent-exporter:v2.0.4
+    container_name: qbittorrent-exporter
+    env_file:
+      - stack.env
+    environment:
+      - QBITTORRENT_BASE_URL=http://gluetun:8080
+      - EXPORTER_PORT=8090
+    networks:
+      media-net: {}
+      monitoring:
+        aliases: [ qbittorrent-exporter ]
+    mem_limit: 128m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8090/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

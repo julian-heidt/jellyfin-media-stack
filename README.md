@@ -53,7 +53,7 @@ All services are containerized and can be accessed through your own custom domai
 ### Supporting Infrastructure
 
 - **Gluetun**: VPN gateway that routes qBittorrent traffic through ProtonVPN
-- **Docker Networks**: `media-net` for inter-service communication, and `proxy-net`, which NPM shares with the web app stacks
+- **Docker Networks**: `media-net` for inter-service communication, `proxy-net`, which NPM shares with the web app stacks, and `monitoring`, which the exporters share with the monitoring services
 
 ## 🏗️ Architecture
 
@@ -165,6 +165,7 @@ Key variables to configure:
 - `SERVER_HOSTNAMES`: Optional gluetun server filter. Leave it empty unless you want one specific server.
 - `FIREWALL_VPN_INPUT_PORTS`: Extra ports gluetun accepts from the VPN side. See the port forwarding notes below.
 - `JELLYFIN_PublishedServerUrl`: Your Jellyfin public URL (e.g., `jellyfin.yourdomain.com`)
+- `QBITTORRENT_API_KEY`: The qBittorrent WebUI API key for the exporter. Leave the placeholder until qBittorrent is running, then follow [Create the qBittorrent API key](#create-the-qbittorrent-api-key).
 
 All of these variables live in `stack.env`. Gluetun and the other services read the file through `env_file`, so `docker compose -f media-stack-gluetun.yml up -d` picks them up without an `--env-file` flag. The compose file keeps only the fixed Proton settings.
 
@@ -194,19 +195,21 @@ The current compose file sets `PORT_FORWARD_ONLY=off` on purpose until Julian re
 
 ### Step 3: Create Docker networks
 
-Swarm services cannot attach to a plain bridge network, so this step creates two attachable overlay networks. Both Swarm services and docker compose containers can join an attachable overlay.
+Swarm services cannot attach to a plain bridge network, so this step creates three attachable overlay networks. Both Swarm services and docker compose containers can join an attachable overlay.
 
 - `media-net` is for the media stack and NPM.
 - `proxy-net` is shared by NPM and the web app stacks.
+- `monitoring` is shared with the monitoring services, and the exporters join it.
 
-Create both once on a swarm manager, before you deploy any stack. Overlay networks need Swarm mode, so run `docker swarm init` first if this node is not in a swarm.
+Create all three once on a swarm manager, before you deploy any stack. Overlay networks need Swarm mode, so run `docker swarm init` first if this node is not in a swarm.
 
 ```bash
 docker network inspect media-net >/dev/null 2>&1 || docker network create -d overlay --attachable media-net
 docker network inspect proxy-net >/dev/null 2>&1 || docker network create -d overlay --attachable proxy-net
+docker network inspect monitoring >/dev/null 2>&1 || docker network create -d overlay --attachable monitoring
 ```
 
-NPM declares both networks as external, so its deploy fails if either one is missing. The compose file for the media stack attaches to the same `media-net`.
+NPM declares `media-net` and `proxy-net` as external, so its deploy fails if either one is missing. The compose file for the media stack declares `media-net` and `monitoring` as external, so `docker compose up` fails if either one is missing.
 
 ### Step 4: Deploy Nginx Proxy Manager
 
@@ -232,7 +235,7 @@ The stack file pins NPM to `docker-manager-01`, the node that holds `/mnt/docker
 docker compose -f media-stack-gluetun.yml up -d
 ```
 
-The file also attaches the exporters to an external `monitoring` network, so that network must exist first. See [Monitoring](#monitoring).
+The file also attaches the exporters to the external `monitoring` network that Step 3 creates. The qBittorrent exporter reads its API key from `stack.env`, and you can only create that key once qBittorrent is running, so the first deploy starts the exporter with the placeholder key. See [Monitoring](#monitoring).
 
 ### Step 6: Verify All Services Are Running
 
@@ -543,21 +546,36 @@ To check that ErsatzTV is healthy, run `docker exec ersatztv curl -sf http://loc
 
 ## Monitoring
 
-The stack runs one Exportarr container per app, for the shared Prometheus and Alloy collector to scrape. Each exporter listens on port 9707 and serves its metrics at `/metrics`. No exporter publishes a port, so only containers on `media-net` or `monitoring` can reach them.
+The stack runs one Exportarr container per *arr app and one qBittorrent exporter, for the shared Prometheus and Alloy collector to scrape. Every exporter serves its metrics at `/metrics`. No exporter publishes a port, so only containers on `media-net` or `monitoring` can reach them.
 
 | Exporter | Monitors | Alias on `monitoring` | Port |
 |---|---|---|---|
 | `exportarr-sonarr` | Sonarr | `exportarr-sonarr` | 9707 |
 | `exportarr-radarr` | Radarr | `exportarr-radarr` | 9707 |
 | `exportarr-prowlarr` | Prowlarr | `exportarr-prowlarr` | 9707 |
+| `qbittorrent-exporter` | qBittorrent | `qbittorrent-exporter` | 8090 |
 
-Each exporter also joins `media-net`, where it reaches its app by name, for example `http://sonarr:8989`.
+Each Exportarr container also joins `media-net`, where it reaches its app by name, for example `http://sonarr:8989`.
 
-The exporters read each app's API key from the app's `config.xml`. Each one mounts the app's existing config volume read-only at `/config` and sets `CONFIG=/config/config.xml`, so no API key lives in the compose file or in `stack.env`. If you regenerate an app's API key, restart its exporter so it reads the new one.
+Each Exportarr container reads its app's API key from the app's `config.xml`. It mounts the app's existing config volume read-only at `/config` and sets `CONFIG=/config/config.xml`, so no *arr API key lives in the compose file or in `stack.env`. If you regenerate an app's API key, restart its exporter so it reads the new one.
 
 The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, so the exporters have no healthcheck. Each has a 128 MiB memory limit.
 
+### qBittorrent exporter
+
+`qbittorrent-exporter` runs `ghcr.io/martabal/qbittorrent-exporter` at `v2.0.4`. qBittorrent shares Gluetun's network and has no address of its own, so the exporter joins `media-net` and reaches the WebUI at `http://gluetun:8080`, the same address Sonarr and Radarr use. Gluetun and qBittorrent are unchanged.
+
+The exporter authenticates with a qBittorrent WebUI API key, which qBittorrent supports from 5.2.0. It reads `QBITTORRENT_API_KEY` from `stack.env` through `env_file`, like the other services, and sends it as an `Authorization: Bearer` header. With a key set, it does no username and password login, so the stack needs no username or password for it.
+
+`env_file: stack.env` has two costs. Changing or rotating the key in `stack.env` makes the next whole-stack `up -d` recreate the other seven services (all eight if you skip step 4) that read `stack.env`, including gluetun, which restarts the VPN session and qBittorrent. Step 4 already recreates the exporter. The key is present in all eight of those containers, and the exporter, which sits on the shared `monitoring` network, also receives the stack's other `stack.env` values, including the VPN credentials.
+
+Keep a non-empty `QBITTORRENT_API_KEY` value in `stack.env`, even before you have a key. If the variable is missing, the exporter falls back to the default login (`admin` and `adminadmin`) at startup and on every scrape. On qBittorrent 5.3.0 each of those failed logins counted toward the five-failure IP ban, and the ban hit on the fifth. A wrong key does no harm. qBittorrent answers it with 403 and counts only failed username and password logins toward the ban.
+
+The exporter has a healthcheck on its `/healthz` endpoint, which does not query qBittorrent, and a 128 MiB memory limit.
+
 ### Before you start the stack
+
+If `stack.env` already exists on the host, add the `QBITTORRENT_API_KEY` line from `stack.env.example` to it before the first `up -d` with this change. The exporter falls back to the default login when the variable is missing. On an existing install, the first `up -d` after you add the line recreates the other services that read `stack.env`, including gluetun and qBittorrent.
 
 `monitoring` is an attachable overlay network shared with the monitoring services. The compose file declares it as external, so `docker compose up` fails until it exists. No stack creates it, so create it once by hand on a swarm manager before the first deploy:
 
@@ -565,15 +583,32 @@ The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, s
 docker network inspect monitoring >/dev/null 2>&1 || docker network create -d overlay --attachable monitoring
 ```
 
+### Create the qBittorrent API key
+
+Needs qBittorrent 5.2.0 or later. Create the key once qBittorrent is running. The first deploy starts the exporter with the placeholder from `stack.env.example`, and these steps replace it.
+
+1. Sign in as described in [qBittorrent Setup](#qbittorrent-setup), open Options and select the WebUI tab.
+2. In the API Key section, click the Generate icon. The key starts with `qbt_` and is 32 characters long. The field shows the key masked, so click the Copy icon next to it to copy the full key.
+3. On docker-manager-00, set `QBITTORRENT_API_KEY` in `stack.env` to the key, replacing the placeholder.
+4. Recreate the exporter so it reads the new value:
+
+```bash
+docker compose -f media-stack-gluetun.yml up -d --force-recreate qbittorrent-exporter
+```
+
+The key lives in `stack.env`. If you lose it, copy it again from the same WebUI field with the Copy icon. Generating a new key rotates it, because qBittorrent keeps one key, and the old key stops working immediately. After a rotation, update `stack.env` and recreate the exporter (steps 3 and 4), or `/metrics` returns 503 until you do.
+
 ### Verify the exporters
 
 ```bash
 docker compose -f media-stack-gluetun.yml ps
 docker logs exportarr-sonarr
+docker logs qbittorrent-exporter
 docker exec sonarr curl -sf http://exportarr-sonarr:9707/metrics | head
+docker exec sonarr curl -sf http://qbittorrent-exporter:8090/metrics | head
 ```
 
-`docker compose ps` should list all three exporters as running, and `docker logs` should end with a `Starting HTTP Server` line for port 9707. An exporter that cannot find an API key in `config.xml` exits with `ApiKey is required to not be empty` instead. The last command runs from the Sonarr container, which is on `media-net` and has curl, and prints Prometheus metrics. Use the same pattern with `radarr` and `prowlarr` for the other two.
+`docker compose ps` should list all four exporters as running, and the qBittorrent exporter should report `healthy`. `docker logs exportarr-sonarr` should end with a `Starting HTTP Server` line for port 9707. An Exportarr container that cannot find an API key in `config.xml` exits with `ApiKey is required to not be empty` instead. `docker logs qbittorrent-exporter` should end with `Starting the exporter`. A wrong or rotated key does not stop the exporter, and the healthcheck stays green because `/healthz` does not query qBittorrent. `/metrics` returns 503 and the log shows `Error code 403 for:` lines. The `curl` commands run from the Sonarr container, which is on `media-net` and has curl, and print Prometheus metrics. Use the same pattern with `radarr` and `prowlarr` for the other two Exportarr containers.
 
 ## 🔒 Security Considerations
 
