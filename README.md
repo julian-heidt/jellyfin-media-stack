@@ -578,7 +578,7 @@ cp qbittorrent-exporter.env.example qbittorrent-exporter.env
 
 The file holds `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD`. `stack.env` needs no change. The compose file requires the new file, so `docker compose up -d` for the whole stack fails with an env file error until it exists.
 
-`monitoring` is an attachable overlay network that the monitoring stack owns. The compose file declares it as external, so `docker compose up` fails until it exists. If the monitoring stack has not created it yet, create it once on a swarm manager:
+`monitoring` is an attachable overlay network shared with the monitoring services. The compose file declares it as external, so `docker compose up` fails until it exists. No stack creates it, so create it once by hand on a swarm manager before the first deploy:
 
 ```bash
 docker network inspect monitoring >/dev/null 2>&1 || docker network create -d overlay --attachable monitoring
