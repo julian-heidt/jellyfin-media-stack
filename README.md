@@ -559,7 +559,7 @@ The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, s
 
 ### Before you start the stack
 
-`monitoring` is an attachable overlay network that the monitoring stack owns. The compose file declares it as external, so `docker compose up` fails until it exists. If the monitoring stack has not created it yet, create it once on a swarm manager:
+`monitoring` is an attachable overlay network that the monitoring stack owns. The compose file declares it as external, so `docker compose up` fails until it exists. No stack creates it, so create it once by hand on a swarm manager before the first deploy:
 
 ```bash
 docker network inspect monitoring >/dev/null 2>&1 || docker network create -d overlay --attachable monitoring
