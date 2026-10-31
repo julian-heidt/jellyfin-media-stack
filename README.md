@@ -195,19 +195,21 @@ The current compose file sets `PORT_FORWARD_ONLY=off` on purpose until Julian re
 
 ### Step 3: Create Docker networks
 
-Swarm services cannot attach to a plain bridge network, so this step creates two attachable overlay networks. Both Swarm services and docker compose containers can join an attachable overlay.
+Swarm services cannot attach to a plain bridge network, so this step creates three attachable overlay networks. Both Swarm services and docker compose containers can join an attachable overlay.
 
 - `media-net` is for the media stack and NPM.
 - `proxy-net` is shared by NPM and the web app stacks.
+- `monitoring` is shared with the monitoring services, and the exporters join it.
 
-Create both once on a swarm manager, before you deploy any stack. Overlay networks need Swarm mode, so run `docker swarm init` first if this node is not in a swarm.
+Create all three once on a swarm manager, before you deploy any stack. Overlay networks need Swarm mode, so run `docker swarm init` first if this node is not in a swarm.
 
 ```bash
 docker network inspect media-net >/dev/null 2>&1 || docker network create -d overlay --attachable media-net
 docker network inspect proxy-net >/dev/null 2>&1 || docker network create -d overlay --attachable proxy-net
+docker network inspect monitoring >/dev/null 2>&1 || docker network create -d overlay --attachable monitoring
 ```
 
-NPM declares both networks as external, so its deploy fails if either one is missing. The compose file for the media stack attaches to the same `media-net`.
+NPM declares `media-net` and `proxy-net` as external, so its deploy fails if either one is missing. The compose file for the media stack declares `media-net` and `monitoring` as external, so `docker compose up` fails if either one is missing.
 
 ### Step 4: Deploy Nginx Proxy Manager
 
@@ -233,7 +235,7 @@ The stack file pins NPM to `docker-manager-01`, the node that holds `/mnt/docker
 docker compose -f media-stack-gluetun.yml up -d
 ```
 
-The file also attaches the exporters to an external `monitoring` network, so that network must exist first. The qBittorrent exporter reads its API key from `stack.env`, and you can only create that key once qBittorrent is running, so the first deploy starts the exporter with the placeholder key. See [Monitoring](#monitoring).
+The file also attaches the exporters to the external `monitoring` network that Step 3 creates. The qBittorrent exporter reads its API key from `stack.env`, and you can only create that key once qBittorrent is running, so the first deploy starts the exporter with the placeholder key. See [Monitoring](#monitoring).
 
 ### Step 6: Verify All Services Are Running
 
@@ -563,9 +565,11 @@ The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, s
 
 `qbittorrent-exporter` runs `ghcr.io/martabal/qbittorrent-exporter` at `v2.0.4`. qBittorrent shares Gluetun's network and has no address of its own, so the exporter joins `media-net` and reaches the WebUI at `http://gluetun:8080`, the same address Sonarr and Radarr use. Gluetun and qBittorrent are unchanged.
 
-The exporter authenticates with a qBittorrent WebUI API key, which qBittorrent supports from 5.2.0. It reads `QBITTORRENT_API_KEY` from `stack.env` through `env_file`, like the other services, and sends it as an `Authorization: Bearer` header. With a key set, it does no username and password login and ignores `QBITTORRENT_COOKIE_NAME`, so the stack needs no username, password or cookie name for it. `env_file` passes the whole file to the container, so the exporter also receives the VPN credentials in `stack.env`.
+The exporter authenticates with a qBittorrent WebUI API key, which qBittorrent supports from 5.2.0. It reads `QBITTORRENT_API_KEY` from `stack.env` through `env_file`, like the other services, and sends it as an `Authorization: Bearer` header. With a key set, it does no username and password login, so the stack needs no username or password for it.
 
-Keep the `QBITTORRENT_API_KEY` line in `stack.env`, even before you have a key. If the variable is missing, the exporter falls back to the default login (`admin` and `adminadmin`) at startup and on every scrape. On qBittorrent 5.3.0 each of those failed logins counted toward the five-failure IP ban, and the ban hit on the fifth. A wrong key does no harm. qBittorrent answers it with 403 and counts only failed username and password logins toward the ban.
+`env_file: stack.env` has two costs. Changing or rotating the key in `stack.env` makes the next whole-stack `up -d` recreate all eight services that read `stack.env`, including gluetun, which restarts the VPN session and qBittorrent. The key is present in all eight of those containers, and the exporter, which sits on the shared `monitoring` network, also receives the stack's other `stack.env` values, including the VPN credentials.
+
+Keep a non-empty `QBITTORRENT_API_KEY` value in `stack.env`, even before you have a key. If the variable is missing, the exporter falls back to the default login (`admin` and `adminadmin`) at startup and on every scrape. On qBittorrent 5.3.0 each of those failed logins counted toward the five-failure IP ban, and the ban hit on the fifth. A wrong key does no harm. qBittorrent answers it with 403 and counts only failed username and password logins toward the ban.
 
 The exporter has a healthcheck on its `/healthz` endpoint, which does not query qBittorrent, and a 128 MiB memory limit.
 
@@ -583,17 +587,16 @@ docker network inspect monitoring >/dev/null 2>&1 || docker network create -d ov
 
 Create the key once qBittorrent is running. The first deploy starts the exporter with the placeholder from `stack.env.example`, and these steps replace it.
 
-1. Open the qBittorrent WebUI, open Options and select the WebUI tab.
-2. In the API Key section, click the Generate icon. The key starts with `qbt_` and is 32 characters long. The copy button next to the field copies it.
-3. Store the key in Bitwarden.
-4. On docker-manager-00, set `QBITTORRENT_API_KEY` in `stack.env` to the key, replacing the placeholder.
-5. Recreate the exporter so it reads the new value:
+1. Sign in as described in [qBittorrent Setup](#qbittorrent-setup), open Options and select the WebUI tab.
+2. In the API Key section, click the Generate icon. The key starts with `qbt_` and is 32 characters long.
+3. On docker-manager-00, set `QBITTORRENT_API_KEY` in `stack.env` to the key, replacing the placeholder.
+4. Recreate the exporter so it reads the new value:
 
 ```bash
 docker compose -f media-stack-gluetun.yml up -d --force-recreate qbittorrent-exporter
 ```
 
-qBittorrent keeps one key. The same button rotates it once a key exists, and the old key stops working immediately. Repeat steps 3 to 5 after a rotation, or `/metrics` returns 503 until you do.
+The key lives in `stack.env`. If you lose it, generate a new one the same way. qBittorrent keeps one key, so the same button rotates it once a key exists, and the old key stops working immediately. After a rotation, repeat steps 3 and 4, or `/metrics` returns 503 until you do.
 
 ### Verify the exporters
 

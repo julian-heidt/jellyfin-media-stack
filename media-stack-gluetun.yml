@@ -4,7 +4,7 @@ networks:
     external: true   # create once on a Swarm manager with: docker network create -d overlay --attachable media-net
   monitoring:
     name: monitoring
-    external: true   # attachable overlay owned by the Prometheus and Alloy stack. It must exist before docker compose up
+    external: true   # create once by hand on a Swarm manager with: docker network create -d overlay --attachable monitoring
 
 volumes:
   media_dir:
