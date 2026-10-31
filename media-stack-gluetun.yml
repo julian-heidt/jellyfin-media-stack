@@ -244,8 +244,8 @@ services:
   # ----------------------------------------------------------
   # Exportarr for Sonarr, Radarr and Prowlarr
   # Prometheus exporters for the shared monitoring stack. Each one reads its app's API key
-  # from config.xml on the app's own config volume, mounted read-only, so no key is copied
-  # into this file or stack.env. No ports are published. Alloy scrapes each exporter on
+  # from config.xml on the app's own config volume, mounted read-only, so no *arr API key is
+  # copied into this file or stack.env. No ports are published. Alloy scrapes each exporter on
   # the monitoring network at its alias on port 9707. The image has no shell or curl, so
   # there is no healthcheck.
   # ----------------------------------------------------------
