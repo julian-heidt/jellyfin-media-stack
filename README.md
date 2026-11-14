@@ -154,6 +154,7 @@ Copy both example environment files and edit them with your settings:
 ```bash
 cp stack.env.example stack.env
 cp gluetun.env.example gluetun.env
+chmod 600 stack.env gluetun.env
 nano stack.env
 nano gluetun.env
 ```
@@ -170,6 +171,7 @@ Key variables to configure in `gluetun.env`:
 - `OPENVPN_PASSWORD`: Your ProtonVPN password
 - `SERVER_HOSTNAMES`: Optional gluetun server filter. Leave it empty unless you want one specific server.
 - `FIREWALL_VPN_INPUT_PORTS`: Extra ports gluetun accepts from the VPN side. See the port forwarding notes below.
+- `VPN_PORT_FORWARDING`: Optional. Not in the example file. Set it to `on` to use Proton port forwarding, as the port forwarding notes below describe.
 
 Gluetun reads both files through `env_file`, so `docker compose -f media-stack-gluetun.yml up -d` picks them up without an `--env-file` flag. Every other service reads only `stack.env`, so no other container receives the VPN credentials. The compose file keeps only the fixed Proton settings.
 
@@ -580,7 +582,7 @@ The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, s
 
 The exporter authenticates with a qBittorrent WebUI API key, which qBittorrent supports from 5.2.0. It reads `QBITTORRENT_API_KEY` from `stack.env` through `env_file`, like the other services, and sends it as an `Authorization: Bearer` header. With a key set, it does no username and password login, so the stack needs no username or password for it.
 
-`env_file: stack.env` has two costs. Changing or rotating the key in `stack.env` makes the next whole-stack `up -d` recreate the other seven services (all eight if you skip step 4) that read `stack.env`, including gluetun, which restarts the VPN session and qBittorrent. Step 4 already recreates the exporter. The key is present in all eight of those containers, and the exporter, which sits on the shared `monitoring` network, also receives the stack's other `stack.env` values, but not the VPN credentials.
+`env_file: stack.env` has two costs. Changing or rotating the key in `stack.env` makes the next whole-stack `up -d` recreate the other seven services (all eight if you skip step 4) that read `stack.env`, including gluetun, which restarts the VPN session and qBittorrent. Step 4 already recreates the exporter. The key is present in all eight of those containers, and the exporter, which sits on the shared `monitoring` network, also receives the stack's other `stack.env` values. It gets no VPN credentials once they live only in `gluetun.env`, as [Moving an existing install to gluetun.env](#moving-an-existing-install-to-gluetunenv) describes.
 
 Keep a non-empty `QBITTORRENT_API_KEY` value in `stack.env`, even before you have a key. If the variable is missing, the exporter falls back to the default login (`admin` and `adminadmin`) at startup and on every scrape. On qBittorrent 5.3.0 each of those failed logins counted toward the five-failure IP ban, and the ban hit on the fifth. A wrong key does no harm. qBittorrent answers it with 403 and counts only failed username and password logins toward the ban.
 
