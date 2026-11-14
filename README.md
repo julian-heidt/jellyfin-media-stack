@@ -82,7 +82,7 @@ Internet
 ### System Requirements
 - Linux server (Ubuntu 20.04+ recommended)
 - Docker Engine 20.10+
-- Docker Compose v2.0+
+- Docker Compose 2.23.1 or later (the Jellyfin database config in `media-stack-gluetun.yml` uses inline `content`)
 - At least 4GB RAM (8GB+ recommended)
 - Sufficient storage for media files
 
