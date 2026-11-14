@@ -681,6 +681,21 @@ sudo ufw enable
 - Consider adding more RAM or CPU cores
 - Check disk I/O performance
 
+### Jellyfin database locking
+
+Jellyfin keeps its SQLite database on the NFS-backed `jellyfin_config` volume. Under load it logs `SQLite Error 5: 'database is locked'`, and the container health check fails in the same windows. The config stays on NFS, so the stack changes how Jellyfin reacts to a locked database instead.
+
+The compose file sets Jellyfin's `LockingBehavior` to `Optimistic` through the inline `jellyfin_database_xml` config. Compose copies it into `/config/config/database.xml` through the Docker API each time it creates the container. It is a copy, not a bind mount, so the file lands on the NFS-backed volume. Inline `content` needs Docker Compose 2.23.1 or later, and the version that counts is the one Portainer runs, not the one on the host. An older Compose rejects the whole file, so no container changes and Portainer reports the failed deploy. In `Optimistic` mode Jellyfin retries a write that fails with "database is locked" up to 15 times with a growing delay, instead of failing on the first try. The default is `NoLock`, which retries nothing. Jellyfin documents the setting in its troubleshooting guide, under "Database Locked Errors".
+
+To check that it applied, search the Jellyfin log after a start for `The database locking mode has been set to: Optimistic.` To count the problem, count log lines with `database is locked`, and count the minutes the container is unhealthy.
+
+To undo it:
+
+1. Revert the commit that added the config and let Portainer redeploy.
+2. Compose wrote the file into the config volume, so reverting does not change it. Stop Jellyfin and set `<LockingBehavior>NoLock</LockingBehavior>` in `/mnt/docker/jellyfin/config/config/database.xml`, or delete the file, and Jellyfin writes the default at the next start. Then start Jellyfin.
+
+If locks continue, lower **Parallel library scan tasks limit** and **Parallel image encoding limit** in the Jellyfin dashboard under General. Jellyfin warns that a high scan limit can cause trouble on network file systems. Do not use `Pessimistic`. The Jellyfin source warns that it is not safe with asynchronous transactions and can deadlock.
+
 ### Access Denied / Permission Errors
 - Verify file ownership: `sudo chown -R 1000:1000 /mnt/docker`
 - Check `PUID` and `PGID` in `stack.env`. They apply to qBittorrent, Prowlarr, Radarr and Sonarr. Seerr runs as uid 1000 inside its image, ErsatzTV runs as `1000:1000` from the compose file, and Jellyfin runs as root.
