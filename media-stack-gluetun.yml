@@ -35,6 +35,18 @@ volumes:
     driver: local
     driver_opts: { type: none, o: bind, device: /mnt/docker/ersatztv }
 
+configs:
+  # Jellyfin reads this once at start. Optimistic makes it retry a write that fails with
+  # "database is locked". The file is the documented default with LockingBehavior changed from
+  # NoLock. See the README section "Jellyfin database locking".
+  jellyfin_database_xml:
+    content: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <DatabaseConfigurationOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+        <DatabaseType>Jellyfin-SQLite</DatabaseType>
+        <LockingBehavior>Optimistic</LockingBehavior>
+      </DatabaseConfigurationOptions>
+
 services:
   # ----------------------------------------------------------
   # VPN gateway for qBittorrent (Proton + OpenVPN)
@@ -228,6 +240,11 @@ services:
       - jellyfin_config:/config
       - jellyfin_cache:/cache
       - media_dir:/media
+    # Compose copies this file into /config/config/database.xml, on the NFS-backed config volume,
+    # each time it creates the container. Needs Docker Compose 2.23.1 or later for inline content.
+    configs:
+      - source: jellyfin_database_xml
+        target: /config/config/database.xml
     networks: [ media-net ]
     ports:
       - "8096:8096"
