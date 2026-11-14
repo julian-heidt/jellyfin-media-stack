@@ -149,27 +149,42 @@ cd jellyfin-media-stack
 
 ### Step 2: Configure Environment Variables
 
-Copy the example environment file and edit it with your settings:
+Copy both example environment files and edit them with your settings:
 
 ```bash
 cp stack.env.example stack.env
+cp gluetun.env.example gluetun.env
 nano stack.env
+nano gluetun.env
 ```
 
-Key variables to configure:
+Key variables to configure in `stack.env`:
 - `TZ`: Your timezone (e.g., `America/New_York`)
 - `PUID` and `PGID`: Your user and group IDs (run `id` command to find these)
-- `OPENVPN_USER`: Your ProtonVPN username
-- `OPENVPN_PASSWORD`: Your ProtonVPN password
 - `UMASK`: File creation mask, `002` by default. LinuxServer images read this exact name and ignore a variant with a `_SET` suffix.
-- `SERVER_HOSTNAMES`: Optional gluetun server filter. Leave it empty unless you want one specific server.
-- `FIREWALL_VPN_INPUT_PORTS`: Extra ports gluetun accepts from the VPN side. See the port forwarding notes below.
 - `JELLYFIN_PublishedServerUrl`: Your Jellyfin public URL (e.g., `jellyfin.yourdomain.com`)
 - `QBITTORRENT_API_KEY`: The qBittorrent WebUI API key for the exporter. Leave the placeholder until qBittorrent is running, then follow [Create the qBittorrent API key](#create-the-qbittorrent-api-key).
 
-All of these variables live in `stack.env`. Gluetun and the other services read the file through `env_file`, so `docker compose -f media-stack-gluetun.yml up -d` picks them up without an `--env-file` flag. The compose file keeps only the fixed Proton settings.
+Key variables to configure in `gluetun.env`:
+- `OPENVPN_USER`: Your ProtonVPN username
+- `OPENVPN_PASSWORD`: Your ProtonVPN password
+- `SERVER_HOSTNAMES`: Optional gluetun server filter. Leave it empty unless you want one specific server.
+- `FIREWALL_VPN_INPUT_PORTS`: Extra ports gluetun accepts from the VPN side. See the port forwarding notes below.
 
-**Important**: The `stack.env` file contains sensitive credentials and is excluded from Git. Never commit this file to version control.
+Gluetun reads both files through `env_file`, so `docker compose -f media-stack-gluetun.yml up -d` picks them up without an `--env-file` flag. Every other service reads only `stack.env`, so no other container receives the VPN credentials. The compose file keeps only the fixed Proton settings.
+
+**Important**: Both `stack.env` and `gluetun.env` contain sensitive values and are excluded from Git. Never commit either file to version control.
+
+#### Moving an existing install to gluetun.env
+
+On a host that already runs the stack, follow these steps when you first pull this change, in place of a plain redeploy.
+
+1. Create `gluetun.env` next to the compose file by copying `gluetun.env.example`.
+2. Move the `OPENVPN_USER`, `OPENVPN_PASSWORD`, `FIREWALL_VPN_INPUT_PORTS` and `SERVER_HOSTNAMES` lines out of `stack.env` and into `gluetun.env`. Move `VPN_PORT_FORWARDING` or `PORT_FORWARD_ONLY` too if either is present.
+3. Restrict access to the file with `chmod 600 gluetun.env`.
+4. Run `docker compose -f media-stack-gluetun.yml up -d`.
+
+Compose refuses to load the configuration while `gluetun.env` is missing, and that failure changes no container. Because the contents of `stack.env` changed, this `up -d` recreates every service that reads it, including gluetun and qBittorrent.
 
 #### VPN server filter
 
@@ -187,9 +202,9 @@ Replace `/yourpath` with any directory on the host. An empty `SERVER_HOSTNAMES` 
 
 Port forwarding with OpenVPN needs a `+pmp` suffix on `OPENVPN_USER`, for example `your_username+pmp`.
 
-Proton forwards a random port, which gluetun prints in its log. A fixed `FIREWALL_VPN_INPUT_PORTS` value cannot match it, so `stack.env.example` leaves the value empty.
+Proton forwards a random port, which gluetun prints in its log. A fixed `FIREWALL_VPN_INPUT_PORTS` value cannot match it, so `gluetun.env.example` leaves the value empty.
 
-The compose file sets none of `VPN_PORT_FORWARDING`, `VPN_PORT_FORWARDING_PROVIDER` or `PORT_FORWARD_ONLY`. Gluetun defaults `VPN_PORT_FORWARDING` to off, so forwarding stays off unless `stack.env` sets `VPN_PORT_FORWARDING=on`. With it on, gluetun defaults `PORT_FORWARD_ONLY` to on for Proton, so it only selects servers that support forwarding.
+The compose file sets none of `VPN_PORT_FORWARDING`, `VPN_PORT_FORWARDING_PROVIDER` or `PORT_FORWARD_ONLY`. Gluetun defaults `VPN_PORT_FORWARDING` to off, so forwarding stays off unless `gluetun.env` sets `VPN_PORT_FORWARDING=on`. With it on, gluetun defaults `PORT_FORWARD_ONLY` to on for Proton, so it only selects servers that support forwarding.
 
 ### Step 3: Create Docker networks
 
@@ -565,7 +580,7 @@ The image is `ghcr.io/onedr0p/exportarr` at `v2.3.0`. It has no shell or curl, s
 
 The exporter authenticates with a qBittorrent WebUI API key, which qBittorrent supports from 5.2.0. It reads `QBITTORRENT_API_KEY` from `stack.env` through `env_file`, like the other services, and sends it as an `Authorization: Bearer` header. With a key set, it does no username and password login, so the stack needs no username or password for it.
 
-`env_file: stack.env` has two costs. Changing or rotating the key in `stack.env` makes the next whole-stack `up -d` recreate the other seven services (all eight if you skip step 4) that read `stack.env`, including gluetun, which restarts the VPN session and qBittorrent. Step 4 already recreates the exporter. The key is present in all eight of those containers, and the exporter, which sits on the shared `monitoring` network, also receives the stack's other `stack.env` values, including the VPN credentials.
+`env_file: stack.env` has two costs. Changing or rotating the key in `stack.env` makes the next whole-stack `up -d` recreate the other seven services (all eight if you skip step 4) that read `stack.env`, including gluetun, which restarts the VPN session and qBittorrent. Step 4 already recreates the exporter. The key is present in all eight of those containers, and the exporter, which sits on the shared `monitoring` network, also receives the stack's other `stack.env` values, but not the VPN credentials.
 
 Keep a non-empty `QBITTORRENT_API_KEY` value in `stack.env`, even before you have a key. If the variable is missing, the exporter falls back to the default login (`admin` and `adminadmin`) at startup and on every scrape. On qBittorrent 5.3.0 each of those failed logins counted toward the five-failure IP ban, and the ban hit on the fifth. A wrong key does no harm. qBittorrent answers it with 403 and counts only failed username and password logins toward the ban.
 
