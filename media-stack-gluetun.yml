@@ -61,7 +61,6 @@ services:
       - /dev/net/tun:/dev/net/tun
     env_file:
       - stack.env
-      - gluetun.env
     environment:
       # --- ProtonVPN OpenVPN Configuration ---
       - VPN_SERVICE_PROVIDER=protonvpn
