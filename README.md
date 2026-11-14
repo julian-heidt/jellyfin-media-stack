@@ -187,7 +187,7 @@ Replace `/yourpath` with any directory on the host. An empty `SERVER_HOSTNAMES` 
 
 Port forwarding with OpenVPN needs a `+pmp` suffix on `OPENVPN_USER`, for example `your_username+pmp`.
 
-Proton forwards a random port, which gluetun prints in its log. A fixed `FIREWALL_VPN_INPUT_PORTS` value cannot match it, so `stack.env.example` leaves the value empty.
+Proton forwards a random port, which gluetun prints in its log. A fixed `FIREWALL_VPN_INPUT_PORTS` value cannot match it, so treat the value in `stack.env.example` as a placeholder.
 
 The compose file sets none of `VPN_PORT_FORWARDING`, `VPN_PORT_FORWARDING_PROVIDER` or `PORT_FORWARD_ONLY`. Gluetun defaults `VPN_PORT_FORWARDING` to off, so forwarding stays off unless `stack.env` sets `VPN_PORT_FORWARDING=on`. With it on, gluetun defaults `PORT_FORWARD_ONLY` to on for Proton, so it only selects servers that support forwarding.
 
