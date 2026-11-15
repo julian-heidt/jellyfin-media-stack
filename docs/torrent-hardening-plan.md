@@ -28,10 +28,10 @@ Recommended order is the note's order, with section 6 after section 1. Section 6
 The source note recorded versions on 2026-10-15: qBittorrent 5.1.4, Sonarr 4.0.17.2952, Radarr 6.0.4.10291 and Prowlarr 2.3.0.5236. Three things in this repo suggest those numbers may be stale.
 
 - `media-stack-gluetun.yml` runs `lscr.io/linuxserver/qbittorrent:latest`, `sonarr:latest`, `radarr:latest` and `prowlarr:latest`, so every image pull moves them.
-- The qBittorrent exporter added in commit 11e409c authenticates with a WebUI API key. I recall that API keys arrived in qBittorrent 5.2.0, but I did not verify that. If it is right, the container is already on 5.2.x, which matters for section 4.
+- The qBittorrent exporter added in commit 11e409c authenticates with a WebUI API key, and the README section "Create the qBittorrent API key" says that needs qBittorrent 5.2.0 or later. If the exporter works, the container is no longer on 5.1.4 and is on 5.2.0 or later. That puts it in or just past the 5.2.0 through 5.2.3 range from section 4, so the exact version matters.
 - The README says the compose file pins versions, but the arr and qBittorrent lines do not.
 
-Before section 4, read the version from each app's UI (System, then Status; qBittorrent shows it under Help, About). From the host, the LinuxServer images also carry the running app version in a label:
+Before section 4, read the version from each app's UI (System, then Status; qBittorrent's `GET /api/v2/app/version` returns it). From the host, the LinuxServer images also carry the running app version in a label:
 
 ```sh
 for c in qbittorrent sonarr radarr prowlarr; do
@@ -47,7 +47,7 @@ Executables that landed in the downloads folder show up with this command on doc
 find /mnt/docker/media/downloads -type f \( -iname '*.exe' -o -iname '*.scr' -o -iname '*.lnk' -o -iname '*.bat' -o -iname '*.cmd' -o -iname '*.msi' -o -iname '*.vbs' -o -iname '*.ps1' \)
 ```
 
-Empty output is the goal. Re-run it every few weeks. After section 1, a hit means a fake got through the filter.
+Empty output is the goal. Re-run it every few weeks. A hit is a file to look at, not proof of a fake: it can be an old leftover or an installer bundled in a real release. This check is extension-based, so a PE file named `.mkv` does not show up. Section 5 covers that.
 
 ### Reading API keys without printing them
 
@@ -55,10 +55,10 @@ Several checks below call the Sonarr, Radarr or Prowlarr API. Each app keeps its
 
 ```sh
 KEY=$(grep -oP '(?<=<ApiKey>)[^<]+' /mnt/docker/sonarr/config.xml)
-printf 'X-Api-Key: %s\n' "$KEY" | curl -s -H @- http://localhost:8989/api/v3/indexer
+printf 'X-Api-Key: %s\n' "$KEY" | curl -fsS -H @- http://localhost:8989/api/v3/indexer
 ```
 
-The qBittorrent WebUI key is `QBITTORRENT_API_KEY` in `stack.env` on the host. The registry in agent-config lists it by name and location, and this plan adds no new credential.
+All `curl` calls here use `-f`, so an HTTP error such as a bad key prints an error instead of an empty result. The qBittorrent WebUI key is `QBITTORRENT_API_KEY` in `stack.env` on the host. The registry in agent-config lists it by name and location, and this plan adds no new credential.
 
 ## 1. Tick "Fail Downloads" on every Sonarr and Radarr indexer
 
@@ -79,7 +79,7 @@ The qBittorrent WebUI key is `QBITTORRENT_API_KEY` in `stack.env` on the host. T
 
 ```sh
 KEY=$(grep -oP '(?<=<ApiKey>)[^<]+' /mnt/docker/sonarr/config.xml)
-printf 'X-Api-Key: %s\n' "$KEY" | curl -s -H @- http://localhost:8989/api/v3/indexer \
+printf 'X-Api-Key: %s\n' "$KEY" | curl -fsS -H @- http://localhost:8989/api/v3/indexer \
   | jq '.[] | {name, fail: [.fields[] | select(.name|test("fail";"i")) | {name, value}]}'
 ```
 
@@ -107,7 +107,7 @@ My recommendation is A for Uindex alone (it has outside reports), B and C for th
 
 ```sh
 KEY=$(grep -oP '(?<=<ApiKey>)[^<]+' /mnt/docker/prowlarr/config.xml)
-printf 'X-Api-Key: %s\n' "$KEY" | curl -s -H @- http://localhost:9696/api/v1/indexer \
+printf 'X-Api-Key: %s\n' "$KEY" | curl -fsS -H @- http://localhost:9696/api/v1/indexer \
   | jq -r '.[] | [.name, .enable, .priority] | @tsv'
 ```
 
@@ -151,12 +151,12 @@ The chosen indexers should show `false` in the second column or the new priority
 **Preconditions. Do not apply before all of these are true.**
 
 1. Sonarr is on 5.x, where a torrent whose files are all excluded is failed. The note says Sonarr 5.0.0.2608 is a pre-release that does this. On Sonarr 4, such a torrent completes empty, Sonarr only warns, and the episode gets stuck with no blocklist and no re-search. That is worse than today.
-2. Radarr behaves the same way. The note covers Sonarr only, so confirm Radarr's handling before relying on it.
+2. Radarr fails an all-excluded torrent too. This is unconfirmed, because the note covers Sonarr only. Check Radarr's behaviour before relying on it.
 3. qBittorrent is 4.5.0 or later and outside 5.2.0 through 5.2.3. Those versions ignore the setting for WebUI adds, and Sonarr adds torrents through the WebUI API, so the setting would do nothing. The fix is targeted for 5.3.
 
-Because the compose file runs `:latest`, precondition 3 can change without anyone editing the repo, and an image pull to 5.2.x would silently turn this setting into a no-op. If Julian wants this change, pin the qBittorrent tag in `media-stack-gluetun.yml` first (a small agent task). Pinning is a decision about how the stack updates, so I am raising it rather than doing it.
+Because the compose file runs `:latest`, precondition 3 can change without anyone editing the repo, and an image pull that lands on 5.2.0 through 5.2.3 would silently turn this setting into a no-op, and the README suggests the container may already be there. If Julian wants this change, pin the qBittorrent tag in `media-stack-gluetun.yml` first (a small agent task). Pinning is a decision about how the stack updates, so I am raising it rather than doing it.
 
-**Check it worked.** Not applicable until applied. After applying, add a throwaway test torrent containing only an `.exe` through Sonarr's manual search or through the qBittorrent UI, and confirm the file is skipped (priority "Do not download") and Sonarr marks the download failed on Sonarr 5. Use a harmless test file you create yourself, not a real fake.
+**Check it worked.** Not applicable until applied. After applying, add a throwaway test torrent containing only an `.exe` in the qBittorrent UI and confirm the file is skipped (priority "Do not download"). To test Sonarr's reaction, the torrent must come from a Sonarr grab, because a torrent added by hand has no Sonarr history and Sonarr marks nothing failed. On Sonarr 5, confirm Sonarr then marks that download failed. Use a harmless test file you create yourself, not a real fake.
 
 **Risk.** High if applied early (stuck episodes, as above). Low once the preconditions hold. Excluding `.msi`, `.zipx` and `.scr` also stops legitimate software torrents, which are not on this stack.
 
@@ -166,7 +166,7 @@ Because the compose file runs `:latest`, precondition 3 can change without anyon
 
 **Who applies it.** An agent, after Julian picks one of the two options. This is optional and I recommend skipping it until sections 1 to 3 have run for a while.
 
-**Option A. On-finish hook.** In qBittorrent Options, Downloads, "Run external program on torrent finished", call a script that reads the first 1 MiB of each file with `file` and flags any file whose type is a Windows or Linux executable. Conf keys are `AutoRun\OnFinished\Enabled` and `AutoRun\OnFinished\Program`. The script would live under `/mnt/docker/qbittorrent/scripts/`, mounted inside the container at `/config/scripts/`. Details to settle before building:
+**Option A. On-finish hook.** In qBittorrent Options, Downloads, "Run external program on torrent finished", call a script that reads the first 1 MiB of each file with `file` and flags any file whose type is a Windows or Linux executable. Set it in the UI. The conf key names for this setting differ between qBittorrent versions and I did not verify them, so read them from a live `qBittorrent.conf` after saving the setting once. The script would live under `/mnt/docker/qbittorrent/scripts/`, mounted inside the container at `/config/scripts/`. Details to settle before building:
 
 - The LinuxServer qBittorrent image may not ship `file`. Check with `docker exec qbittorrent which file`. If it is missing, either install it through a LinuxServer mod or use a short Python check of the first bytes (`MZ` for PE, `\x7fELF` for ELF).
 - What the hook does on a hit. Logging alone leaves the torrent in the queue. Making Sonarr blocklist and re-search needs an API call to Sonarr, which means the script needs the Sonarr key, so it holds a credential. That adds an entry to the credential registry.
@@ -176,7 +176,7 @@ Because the compose file runs `:latest`, precondition 3 can change without anyon
 
 **Check it worked.** For Option A, add a test torrent with a harmless file whose first bytes are `MZ` and whose name ends in `.mkv`, and confirm the hook logs or acts on it. For Option B, the Cleanuparr UI lists the blocked download and Sonarr's History shows it blocklisted.
 
-**Risk.** Low cost either way. Option A risks a hook that errors and blocks the "on finished" step for good torrents, so it needs a guard that always exits 0. Option B adds a service and its credentials to maintain.
+**Risk.** Low cost either way. Option A runs after the torrent completes and does not hold it back, so a broken script fails silently and the fake stays in the queue. It needs logging and an alert on errors. Option B adds a service and its credentials to maintain.
 
 **Decision from Julian.** Yes. Whether to do this at all, and A or B.
 
@@ -195,19 +195,19 @@ Because the compose file runs `:latest`, precondition 3 can change without anyon
 
 1. Do section 1 first. Otherwise a re-search can fetch another fake.
 2. Check Sonarr's Activity, Queue for these six. If they appear there, remove them from the Queue with "Remove from download client" and "Add to blocklist" both ticked. Sonarr then removes the torrent for you and will not grab that release again.
-3. If they are not in Sonarr's queue, remove them in qBittorrent. Then open Sonarr History, find the grab entries for the six episodes and use Mark as Failed, which blocklists the release.
+3. If they are not in Sonarr's queue, remove them in qBittorrent. Then open Sonarr History, find the grab entries for the six episodes and use Mark as Failed. That should blocklist the release, but the behaviour depends on the Sonarr version and the failed-download settings, so open the blocklist (Activity, Blocklist) and confirm each of the six releases is listed. If one is missing, add it from History.
 4. Expect Sonarr to search again for the missing episodes. This is the wanted outcome, and a real release replaces the fake.
 
 **Check it worked.** No torrent named like the fakes remains:
 
 ```sh
 KEY=$(grep '^QBITTORRENT_API_KEY=' stack.env | cut -d= -f2-)
-printf 'Authorization: Bearer %s\n' "$KEY" | curl -s -H @- http://localhost:8080/api/v2/torrents/info \
+printf 'Authorization: Bearer %s\n' "$KEY" | curl -fsS -H @- http://localhost:8080/api/v2/torrents/info \
   | jq -r '.[].name' | grep -i -E 'SYLiX|HiggsBoson'
 ```
 
-Run it from the directory that holds `stack.env`. Empty output means done, and the command exits 1 because `grep` found nothing, which is the expected result here. If the bearer header is rejected, the installed qBittorrent uses another auth method and the UI check serves instead: the filter box shows zero rows for each of the two names. In Sonarr, Wanted shows the six episodes as missing or newly grabbed, and Settings, Indexers shows no new warnings.
+Run it from the directory that holds `stack.env`. `curl -f` fails loudly on an HTTP error, so an empty result after a successful call means no matching torrent, and `grep` then exits 1. If curl prints an error instead, nothing was checked. If curl reports an auth error, the UI check serves instead: the filter box shows zero rows for each of the two names. In Sonarr, Wanted shows the six episodes as missing or newly grabbed, and Settings, Indexers shows no new warnings.
 
 **Risk.** Low. Without blocklisting, Sonarr can grab the same fake release again, which is why step 2 or 3 matters. The re-search could pull another bad release if section 1 is not in place, which is why it comes first.
 
-**Decision from Julian.** One yes or no, to confirm the six torrents may go. There is also a side question from the source note. qBittorrent sends RSS and miscellaneous traffic through an HTTP proxy at `192.168.4.64:8888` while torrent traffic stays bound to `tun0` through gluetun. Julian needs to say whether he recognizes that proxy. If not, clear it under Options, Connection, Proxy Server (type None) and confirm that torrents still connect through gluetun. The proxy setting lives in the qBittorrent config volume and nothing in this repo sets it.
+**Decision from Julian.** One yes or no, to confirm the six torrents may go. There is also a side question from the source note. The source note says qBittorrent sends RSS and miscellaneous traffic through an HTTP proxy at `192.168.4.64:8888` while torrent traffic stays bound to `tun0` through gluetun. I could not verify that split. Julian needs to say whether he recognizes that proxy. If not, clear it under Options, Connection, Proxy Server (type None) and confirm that torrents still connect through gluetun. The proxy setting lives in the qBittorrent config volume, and a search of this repo finds no `192.168.4.64`.
