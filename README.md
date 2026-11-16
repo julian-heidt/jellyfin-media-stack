@@ -747,7 +747,7 @@ Back up the Jellyfin configuration before you start the new image (see Backup Co
 1. Pull the new image and start the container.
 2. Run a full library scan from the Jellyfin dashboard once the migration finishes.
 
-The compose file pins `jellyfin/jellyfin:12.2`, the same image `latest` resolved to when this pin was added. An existing 10.11 install migrates the first time you start that image.
+The compose file uses `jellyfin/jellyfin:latest`, so pulling the image fetches whatever version `latest` points to at that moment. Starting a 12.x image on an existing 10.11 install runs the migration described above.
 
 #### Seerr replaced Jellyseerr
 
